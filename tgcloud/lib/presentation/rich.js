@@ -17,7 +17,10 @@ function musicCard(state) {
     mode === 'last' ? 'ÚLTIMA REPRODUÇÃO' :
     mode === 'error' ? 'NÃO FOI POSSÍVEL ATUALIZAR' : 'SEM REPRODUÇÕES';
   const cover = state.image && mode !== 'error'
-    ? '<figure><img src="' + escapeHtml(state.image) + '"/></figure>' : '';
+    ? '<figure><img src="' + escapeHtml(state.image) +
+      '"/><figcaption>Capa do álbum</figcaption></figure>'
+    : mode === 'playing' || mode === 'last'
+      ? '<p><i>Capa não disponível no catálogo do Last.fm.</i></p>' : '';
   const details = mode === 'error' ?
     '<p>' + escapeHtml(state.error || 'Falha ao consultar o Last.fm.') + '</p>' :
     mode === 'empty' ? '<p>Nenhuma reprodução recente encontrada para esta conta.</p>' :

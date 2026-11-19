@@ -27,6 +27,18 @@ export default async function () {
       status: Number.isInteger(error?.status) ? error.status : null,
     };
   }
+  // Harmless, read-only verification of artwork retrieval on a known catalogue album.
+  try {
+    const image = await createLastfmClient({ request: fetch, apiKey: LASTFM_API_KEY })
+      .coverFor({ artist: 'Cher', album: 'Believe', title: 'Believe', image: '' });
+    report.artwork = { lookupOk: true, foundImage: Boolean(image) };
+  } catch (error) {
+    report.artwork = {
+      lookupOk: false,
+      kind: typeof error?.kind === 'string' ? error.kind : 'unexpected',
+      apiCode: Number.isInteger(error?.apiCode) ? error.apiCode : null,
+    };
+  }
   // Sentinel negative ID is not a Telegram user. Never overwrite any existing row.
   const repository = createProfileRepository({ db, eq, profiles });
   const sentinelId = -700000000;

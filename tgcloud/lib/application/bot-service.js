@@ -10,7 +10,19 @@ export function createBotService({ profiles, lastfm, messenger, views, logger = 
     Number.isSafeInteger(chat.id) && chat.id === from?.id;
   const send = (chatId, view) => messenger.rich(chatId, view);
   const recent = (user, count = 5) => lastfm.recent(user, count);
-  const state = async user => makeState(user, await recent(user, 5));
+  const state = async user => {
+    const tracks = await recent(user, 5);
+    if (tracks[0] && !tracks[0].image) {
+      try {
+        const cover = await lastfm.coverFor(tracks[0]);
+        if (cover) tracks[0] = { ...tracks[0], image: cover };
+      } catch (error) {
+        // Artwork lookups must not hide a valid music result; record failures.
+        record(error, 'lastfm-cover');
+      }
+    }
+    return makeState(user, tracks);
+  };
 
   function record(error, operation) {
     // Do not log thrown HTTP messages; they can include ?api_key=<secret>.

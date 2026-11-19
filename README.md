@@ -11,7 +11,7 @@ O bot exibe música atual e histórico do Last.fm usando Rich Messages nativas d
 - `/recentes` — últimas cinco faixas em Rich Message
 - `/perfil`, `/ajuda` e `/remover confirmar` — gerenciamento e instruções
 
-O card mostra status, capa quando fornecida pelo Last.fm, título, artista, álbum, reproduções anteriores e os botões próprios de Rich Messages, como `<tg-button type="callback_data">`. **Não usa `inline_keyboard`.** O botão Atualizar consulta novamente o Last.fm e envia um novo card Rich. Não há polling automático.
+O card mostra status, capa, título, artista, álbum, reproduções anteriores e os botões próprios de Rich Messages, como `<tg-button type="callback_data">`. **Não usa `inline_keyboard`.** Quando a resposta `user.getRecentTracks` não fornece arte válida, o bot consulta `album.getInfo` e depois `track.getInfo`, usando apenas URLs HTTPS dos domínios de imagem permitidos pelo Last.fm. A capa aparece no bloco `<figure><img>` do Rich HTML (conforme a Bot API oficial). Se nenhuma imagem real existir no catálogo, o card explica a ausência sem inventar uma capa. O botão Atualizar consulta novamente o Last.fm e envia um novo card Rich. Não há polling automático.
 
 A API documenta `sendRichMessage` e o Rich HTML em https://core.telegram.org/bots/api.
 

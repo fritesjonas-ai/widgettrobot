@@ -15,26 +15,39 @@ export function parseRecentTracks(payload) {
         typeof artist !== 'string' || !artist.trim()) {
       throw new TypeError('Faixa Last.fm sem título ou artista');
     }
-    const images = Array.isArray(item?.image) ? item.image : [];
-    const image = images.find(x => x?.size === 'extralarge')?.['#text'] ||
-      images.find(x => x?.size === 'large')?.['#text'] || '';
+    const image = coverFromImages(item?.image);
     return {
       title: shorten(item.name, 120),
       artist: shorten(artist, 100),
       album: shorten(typeof item?.album === 'object' ? item.album['#text'] : item?.album || '', 80),
       nowplaying: String(item?.['@attr']?.nowplaying ?? '').toLowerCase() === 'true',
       playedAt: Number(item?.date?.uts) || 0,
-      image: validCoverUrl(image),
+      image,
     };
   });
+}
+
+// Select the best usable size. Some Last.fm responses contain blank image entries.
+export function coverFromImages(images) {
+  if (!Array.isArray(images)) return '';
+  for (const size of ['extralarge', 'mega', 'large', 'medium', 'small']) {
+    for (const entry of images) {
+      if (entry?.size !== size) continue;
+      const url = validCoverUrl(entry['#text']);
+      if (url) return url;
+    }
+  }
+  return '';
 }
 
 export function validCoverUrl(value) {
   if (typeof value !== 'string') return '';
   const source = value.trim();
   // Telegram Serverless does not expose URL; accept only the documented cover hosts.
-  return /^https:\/\/(?:lastfm\.freetls\.fastly\.net|userserve-ak\.last\.fm)(?:\/|$)/i.test(source)
-    ? source : '';
+  if (!/^https:\/\/(?:lastfm\.freetls\.fastly\.net|userserve-ak\.last\.fm)(?:\/|$)/i.test(source)) return '';
+  // Last.fm's standard placeholder is not the actual album artwork.
+  if (/2a96cbd8b46e442fc41c2b86b821562f/i.test(source)) return '';
+  return source;
 }
 
 export function makeState(user, list, error = '', errorKind = '') {

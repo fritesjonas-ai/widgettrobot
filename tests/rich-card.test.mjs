@@ -9,7 +9,8 @@ const me = { id: 123, is_bot: false };
 const chat = { id: 123, type: 'private' };
 const message = text => ({ text, from: me, chat });
 const callback = (data, from = me) => ({ id: 'query-1', data, from, message: { chat } });
-const song = (name = 'Starlight', artist = 'Muse', playing = true, image = '') => ({
+const song = (name = 'Starlight', artist = 'Muse', playing = true,
+  image = 'https://lastfm.freetls.fastly.net/i/u/300x300/test-art.jpg') => ({
   name, artist: { '#text': artist }, album: { '#text': 'Black Holes' },
   ...(playing ? { '@attr': { nowplaying: 'true' } } : { date: { uts: '1731957000' } }),
   ...(image ? { image: [{ size: 'extralarge', '#text': image }] } : {}),
@@ -23,6 +24,7 @@ function setup(initial = payload(song())) {
   const stored = new Map(), calls = [], requests = [], activity = [], logs = [];
   const fails = {};
   let current = initial, status = 200, networkFailure = false;
+  let albumInfo = { album: { image: [] } }, trackInfo = { track: { album: { image: [] } } };
   const logger = { error(...values) { logs.push(values); } };
   const api = {
     async sendRichMessage(data) {
@@ -51,9 +53,11 @@ function setup(initial = payload(song())) {
       activity.push('lastfm.fetch');
       requests.push(new URL(url));
       if (networkFailure) throw Error('network error');
+      const method = new URL(url).searchParams.get('method');
       return {
         status, ok: status >= 200 && status < 300,
-        json: async () => current,
+        json: async () => method === 'album.getInfo' ? albumInfo :
+          method === 'track.getInfo' ? trackInfo : current,
       };
     },
   });
@@ -61,6 +65,8 @@ function setup(initial = payload(song())) {
     messenger: createTelegramMessenger({ api, logger }), views: richViews, logger });
   return { bot, calls, requests, activity, logs, fails, stored,
     setPayload(x) { current = x; },
+    setAlbumInfo(x) { albumInfo = x; },
+    setTrackInfo(x) { trackInfo = x; },
     setStatus(x) { status = x; },
     setNetworkFailure(x) { networkFailure = x; },
     clear() { calls.length = 0; requests.length = 0; activity.length = 0; logs.length = 0; },
@@ -143,8 +149,66 @@ test('capa válida é incorporada em bloco Rich figure, sem teclado inline', asy
   const cover = 'https://lastfm.freetls.fastly.net/i/u/300x300/demo.jpg';
   const h = setup(payload(song('With Cover', 'Artist', true, cover)));
   await link(h);
-  assert.match(html(h.calls[0]), /<figure><img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/demo\.jpg"\/><\/figure>/);
+  assert.match(html(h.calls[0]), /<figure><img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/demo\.jpg"\/><figcaption>Capa do álbum<\/figcaption><\/figure>/);
   assert.deepEqual(Object.keys(h.calls[0].data).sort(), ['chat_id', 'rich_message']);
+});
+
+test('quando recentes não traz capa, album.getInfo fornece a imagem no card Rich', async () => {
+  const h = setup(payload(song('Believe', 'Cher', true, '')));
+  const cover = 'https://lastfm.freetls.fastly.net/i/u/300x300/believe.jpg';
+  h.setAlbumInfo({ album: { image: [
+    { size: 'extralarge', '#text': cover },
+    { size: 'mega', '#text': 'https://example.com/not-trusted.jpg' },
+  ] } });
+  await link(h);
+  assert.deepEqual(h.requests.map(x => x.searchParams.get('method')),
+    ['user.getRecentTracks', 'user.getRecentTracks', 'album.getInfo']);
+  assert.equal(h.requests[2].searchParams.get('album'), 'Black Holes');
+  assert.match(html(h.calls[0]), /<img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/believe\.jpg"\/>/);
+  assert.match(html(h.calls[0]), /Capa do álbum/);
+});
+
+test('track.getInfo recupera a capa quando album.getInfo não tem imagem', async () => {
+  const h = setup(payload(song('Believe', 'Cher', true, '')));
+  const cover = 'https://lastfm.freetls.fastly.net/i/u/300x300/trackinfo.jpg';
+  h.setTrackInfo({ track: { album: { image: [
+    { size: 'large', '#text': cover },
+  ] } } });
+  await link(h);
+  assert.deepEqual(h.requests.map(x => x.searchParams.get('method')),
+    ['user.getRecentTracks', 'user.getRecentTracks', 'album.getInfo', 'track.getInfo']);
+  assert.equal(h.requests.at(-1).searchParams.get('track'), 'Believe');
+  assert.match(html(h.calls[0]), /trackinfo\.jpg/);
+});
+
+test('entrada de capa vazia ou placeholder é ignorada; imagens pequenas válidas são aceitas', async () => {
+  const h = setup(payload(song('No Image', 'Artist', true, '')));
+  h.setAlbumInfo({ album: { image: [
+    { size: 'extralarge', '#text': 'https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png' },
+    { size: 'medium', '#text': 'https://lastfm.freetls.fastly.net/i/u/64s/realcover.png' },
+  ] } });
+  await link(h);
+  assert.match(html(h.calls[0]), /realcover\.png/);
+  assert.doesNotMatch(html(h.calls[0]), /2a96cbd8b46e442fc41c2b86b821562f/);
+});
+
+test('sem capa na API o card informa ausência e preserva música, sem capa inventada', async () => {
+  const h = setup(payload(song('No Image', 'Artist', true, '')));
+  await link(h);
+  assert.match(html(h.calls[0]), /No Image/);
+  assert.match(html(h.calls[0]), /Capa não disponível no catálogo do Last.fm/);
+  assert.doesNotMatch(html(h.calls[0]), /<img/);
+});
+
+test('erro no método de capa não oculta música nem vaza a chave Last.fm', async () => {
+  const h = setup(payload(song('No Image', 'Artist', true, '')));
+  h.setAlbumInfo({ error: 29, message: 'Rate limit' });
+  await link(h);
+  assert.match(html(h.calls[0]), /No Image/);
+  assert.match(html(h.calls[0]), /Capa não disponível/);
+  assert.ok(h.logs.some(entry => entry[1].operation === 'lastfm-cover' &&
+    entry[1].code === 29));
+  assert.doesNotMatch(JSON.stringify(h.calls) + JSON.stringify(h.logs), /test-only-key/);
 });
 
 test('capa externa não aprovada e metadados hostis não entram como HTML executável', async () => {
