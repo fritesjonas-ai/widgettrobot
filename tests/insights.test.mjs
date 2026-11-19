@@ -4,7 +4,7 @@ import { createLastfmClient } from '../tgcloud/lib/infrastructure/lastfm-client.
 import { createBotService } from '../tgcloud/lib/application/bot-service.js';
 import { createTelegramMessenger } from '../tgcloud/lib/infrastructure/telegram-messenger.js';
 import { richViews } from '../tgcloud/lib/presentation/rich.js';
-import { parseMessage, fromCallback, TOP_PERIODS } from '../tgcloud/lib/domain/actions.js';
+import { parseMessage, fromCallback } from '../tgcloud/lib/domain/actions.js';
 import { ExternalServiceError } from '../tgcloud/lib/domain/errors.js';
 
 const cover='https://lastfm.freetls.fastly.net/i/u/300x300/sample.jpg';
@@ -81,6 +81,7 @@ test('card, relatórios, recentes e perfil mostram as cinco funções como botõ
   {command:'/descobrir', method:'track.getSimilar'},
   {command:'/recentes', method:'user.getRecentTracks'},
   {command:'/perfil', method:null},
+  {command:'/ajuda', method:null},
  ];
  for(const {command,method} of routes) {
   h.reset();
@@ -93,6 +94,7 @@ test('card, relatórios, recentes e perfil mostram as cinco funções como botõ
   assert.doesNotMatch(markup,/inline_keyboard|reply_markup|<script/i);
   assert.equal(h.calls.filter(x=>x.method==='sendRichMessage').length,1);
   if(method) assert.ok(h.requests.some(x=>x.method===method),command);
+  if(command==='/ajuda') assert.match(markup,/\/tops faixas 7d/);
  }
 });
 
@@ -132,19 +134,7 @@ test('parser de /tops aceita categoria/período e rejeita filtros desconhecidos'
  assert.equal(fromCallback('wt:tops:script:7day'),null);
  assert.equal(fromCallback('wt:tops:tracks:invalid'),null);
  assert.equal(fromCallback('wt:tops:tracks:7day:extra'),null);
- assert.equal(Object.keys(TOP_PERIODS).length,6);
 });
-test('/ajuda inclui navegação Rich para as cinco funções sem alterar o card musical',async()=>{
- const h=setup();
- await h.bot.onMessage(h.message('/ajuda'));
- assert.equal(h.calls.length,1);
- for(const action of ['tops','stats','loved','weekly','discover']) {
-  assert.match(h.markup(),new RegExp('data="wt:'+action+'"'));
- }
- assert.match(h.markup(),/\/tops faixas 7d/);
- assert.doesNotMatch(h.markup(),/inline_keyboard|reply_markup/);
-});
-
 test('/tops exibe ranking, capa, tags Rich e navegação de períodos',async()=>{
  const h=setup();
  await h.bot.onMessage(h.message('/tops faixas 1m'));

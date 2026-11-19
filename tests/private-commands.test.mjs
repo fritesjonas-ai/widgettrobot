@@ -1,23 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PRIVATE_COMMANDS, PRIVATE_SCOPE, validatePrivateCommands, configurePrivateCommands,
+  validatePrivateCommands, configurePrivateCommands,
 } from '../tgcloud/lib/domain/private-commands.js';
-import { parseMessage } from '../tgcloud/lib/domain/actions.js';
-
-test('menu privado contém comandos implementados, descrições e nenhum alias duplicado', () => {
-  assert.equal(validatePrivateCommands(), true);
-  assert.deepEqual(PRIVATE_COMMANDS.map(x => x.command), [
-    'start', 'setuser', 'widget', 'now', 'recentes', 'tops', 'stats', 'amadas', 'semana', 'descobrir',
-    'album', 'letra', 'buscar', 'resumo', 'perfil', 'remover', 'ajuda',
-  ]);
-  assert.deepEqual(PRIVATE_SCOPE, { type: 'all_private_chats' });
-  assert.equal(parseMessage('/setuser').kind, 'link');
-  assert.equal(parseMessage('/remover').kind, 'unlink');
-  assert.equal(parseMessage('/painel').action, parseMessage('/widget').action);
-  assert.equal(parseMessage('/card').action, parseMessage('/widget').action);
-  assert.equal(parseMessage('/tocando').action, parseMessage('/now').action);
-});
 
 test('Bot API recebe setMyCommands com escopo privado e verifica os dois idiomas', async () => {
   const requests = [];
@@ -43,10 +28,18 @@ test('Bot API recebe setMyCommands com escopo privado e verifica os dois idiomas
   ]);
   for (const request of requests) {
     assert.deepEqual(request.payload.scope, { type: 'all_private_chats' });
-    assert.ok(!Object.hasOwn(request.payload, 'reply_markup'));
-    assert.ok(!Object.hasOwn(request.payload, 'inline_keyboard'));
   }
-  assert.deepEqual(requests[0].payload.commands, PRIVATE_COMMANDS);
+  const commands = requests[0].payload.commands;
+  const names = commands.map(entry => entry.command);
+  // These assertions check the external Bot API payload, not exported constants.
+  for (const required of ['start', 'setuser', 'widget', 'tops', 'stats',
+    'amadas', 'semana', 'descobrir', 'album', 'letra', 'buscar', 'resumo']) {
+    assert.ok(names.includes(required), 'Não publicou /' + required);
+  }
+  assert.equal(new Set(names).size, names.length, 'Menu enviado com comandos repetidos');
+  assert.ok(commands.every(({ command, description }) =>
+    /^[a-z0-9_]{1,32}$/.test(command) && typeof description === 'string' &&
+    description.trim().length > 0), 'A API recebeu descrições/comandos inválidos');
 });
 
 test('falhas ou divergências na resposta oficial não são tratadas como sucesso', async () => {

@@ -30,11 +30,18 @@ test('não mostra capas de artistas diferentes, edições diferentes nem URLs n�
     assert.equal(await createDeezerCoverClient({request:g.request}).find('Cher','Believe'),'');
   }
 });
-test('cache de resultados positivos e negativos evita buscas repetidas', async () => {
-  const g=gateway(), api=createDeezerCoverClient({request:g.request});
-  assert.equal(await api.find('Cher','Believe'),cover);
-  assert.equal(await api.find('Cher','Believe'),cover);
-  assert.equal(g.requests.length,1);
+test('cache evita nova busca para capas encontradas e ausentes', async () => {
+  const positive = gateway();
+  const found = createDeezerCoverClient({request:positive.request});
+  assert.equal(await found.find('Cher','Believe'), cover);
+  assert.equal(await found.find('Cher','Believe'), cover);
+  assert.equal(positive.requests.length, 1);
+
+  const negative = gateway([album('Outra artista')]);
+  const missing = createDeezerCoverClient({request:negative.request});
+  assert.equal(await missing.find('Cher','Believe'), '');
+  assert.equal(await missing.find('Cher','Believe'), '');
+  assert.equal(negative.requests.length, 1);
 });
 test('depois do Last.fm sem capa, Deezer complementa o Rich card com a imagem', async () => {
   const sent=[], lookup=[];
