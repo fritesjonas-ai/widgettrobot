@@ -5,6 +5,7 @@ import { LASTFM_API_KEY } from '../lib/lastfm-key.js';
 import { createProfileRepository } from '../lib/infrastructure/profile-repository.js';
 import { createLastfmClient } from '../lib/infrastructure/lastfm-client.js';
 import { createCoverArtArchiveClient } from '../lib/infrastructure/cover-art-archive.js';
+import { createDeezerCoverClient } from '../lib/infrastructure/deezer-cover.js';
 import { makeState, compactState } from '../lib/domain/lastfm-parser.js';
 
 // Executado somente via tgcloud run; não é publicado como endpoint.
@@ -106,6 +107,12 @@ export default async function () {
       mbid: typeof body?.album?.mbid === 'string' ? body.album.mbid.slice(0,40) : null,
       images: body?.album?.image?.length || 0 };
   } catch(error) { report.albumMetadata = { errorName: error?.name || 'unknown' }; }
+  try {
+    const image = await createDeezerCoverClient({ request: fetch }).find('Cher','Believe');
+    report.deezerCover = { ok:true, foundImage: Boolean(image), trustedHost: image.startsWith('https://') };
+  } catch(error) {
+    report.deezerCover = { ok:false, errorName: error?.name || 'unknown' };
+  }
   // Sentinel negative ID is not a Telegram user. Never overwrite any existing row.
   const repository = createProfileRepository({ db, eq, profiles });
   const sentinelId = -700000000;

@@ -15,7 +15,7 @@ function matching(group, artist, album) {
       !Array.isArray(credit)) return false;
   const name = credit.filter(x => x && typeof x === 'object')
     .map(x => x.name || x.artist?.name || '').join('');
-  return normalized(name) === normalized(artist);
+  return normalized(name) === normalized(artist) && group['primary-type'] === 'Album';
 }
 export function createCoverArtArchiveClient({ request, clock = Date.now }) {
   if (typeof request !== 'function') throw new TypeError('HTTP request requerido');
@@ -38,7 +38,7 @@ export function createCoverArtArchiveClient({ request, clock = Date.now }) {
       // MusicBrainz limits searches to approximately one request/s per source IP.
       if (now - lastSearch < 1100) return '';
       lastSearch = now;
-      const q = 'releasegroup:"' + escaped(album) + '" AND artist:"' + escaped(artist) + '"';
+      const q = 'releasegroup:"' + escaped(album) + '" AND artist:"' + escaped(artist) + '" AND primarytype:album';
       const endpoint = 'https://musicbrainz.org/ws/2/release-group/?query=' +
         encodeURIComponent(q) + '&fmt=json&limit=5';
       const result = await getJSON(endpoint);

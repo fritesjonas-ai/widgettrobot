@@ -4,7 +4,7 @@ import { makeState, compactState } from '../domain/lastfm-parser.js';
 import { ExternalServiceError, StorageError, lastfmErrorDetail, telegramFailure } from '../domain/errors.js';
 
 /** Application use cases. All SDK, HTTP, persistence and Telegram calls enter via ports. */
-export function createBotService({ profiles, lastfm, coverArt = null, messenger, views, logger = console }) {
+export function createBotService({ profiles, lastfm, coverArt = null, deezerCover = null, messenger, views, logger = console }) {
   if (!profiles || !lastfm || !messenger || !views) throw new Error('Portas do bot não configuradas.');
   const privateChat = (chat, from) => chat?.type === 'private' &&
     Number.isSafeInteger(chat.id) && chat.id === from?.id;
@@ -16,6 +16,10 @@ export function createBotService({ profiles, lastfm, coverArt = null, messenger,
       let image = '';
       try { image = await lastfm.coverFor(tracks[0]); }
       catch (error) { record(error, 'lastfm-cover'); }
+      if (!image && deezerCover?.find) {
+        try { image = await deezerCover.find(tracks[0].artist, tracks[0].album); }
+        catch (error) { record(error, 'deezer-cover'); }
+      }
       if (!image && coverArt?.find) {
         try { image = await coverArt.find(tracks[0].artist, tracks[0].album); }
         catch (error) { record(error, 'cover-art-archive'); }
