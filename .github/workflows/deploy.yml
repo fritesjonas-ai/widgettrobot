@@ -40,7 +40,7 @@ jobs:
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
         run: node scripts/inject-secret.mjs
-      - name: Diagnóstico read-only do /setuser no runtime Serverless
+      - name: Verificar Last.fm, capas e SQLite no Serverless
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
         run: npx tgcloud run endpoints/diagnoseSetuser '{}'

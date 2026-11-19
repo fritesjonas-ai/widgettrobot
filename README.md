@@ -19,6 +19,10 @@ A API documenta `sendRichMessage` e o Rich HTML em https://core.telegram.org/bot
 
 Bots comuns podem receber `INPUT_MEDIA_WIDGET_NOT_ALLOWED` ao tentar enviar HTML Widgets. O bot não envia Widgets novos. O handler `widget_query` permanece apenas para atender mensagens legadas eventualmente existentes.
 
+## Capas alternativas
+
+O último resultado do teste direto com Telegram Serverless encontrou a capa de **Cher — Believe** via Deezer (consulta pública `search/album`). A URL é validada como HTTPS em `dzcdn.net`, e o resultado só é usado quando o título do álbum **e** o artista coincidem. O provedor não recebe dados pessoais do Telegram nem a chave do Last.fm. Respostas sem capa mantêm o card Rich sem imagem inventada. Consulte [Deezer API](https://developers.deezer.com/api) e [Cover Art Archive](https://musicbrainz.org/doc/Cover_Art_Archive/API). As imagens permanecem hospedadas pelos provedores; os direitos dos materiais visuais pertencem aos respectivos titulares.
+
 ## Configuração e deploy
 
 Configure os Secrets `TGCLOUD_TOKEN` (CLI Access do Telegram Serverless) e `LASTFM_API_KEY` (API pública do Last.fm) no repositório. Faça push para a branch `main` ou execute o workflow manualmente. A chave é gerada no módulo do backend durante o deploy; nunca é incluída na Rich Message.
