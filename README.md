@@ -27,6 +27,12 @@ A auditoria de código executável, payloads e comentários está em [`AUDITORIA
 
 Todas as respostas de conteúdo usam **Rich Messages**. O painel com três abas **Tocando**, **Recentes** e **Perfil** é um **HTML Widget**, que realiza consultas ao bot por `TelegramWidget.request()` enquanto estiver visível em conversa privada.
 
+## Widgets em produção (novembro de 2026)
+
+O Telegram introduziu `sendWidget` na Bot API 10.4, mas restringiu o uso em produção para **bots comuns**. Um colaborador oficial confirmou a restrição ao investigar `400 INPUT_MEDIA_WIDGET_NOT_ALLOWED` em chats privados: https://github.com/tdlib/telegram-bot-api/issues/947.
+
+O comando `/widget` usa exclusivamente `sendWidget`. Se a API recusar por essa restrição, o bot responde com Rich Message explicando o bloqueio. Não envia `sendMessage` ou `inline_keyboard`. Os botões `tg-button` das Rich Messages continuam disponíveis. Os outros erros da API são propagados, sem serem mascarados.
+
 ## Executar validações
 
 ```bash

@@ -50,23 +50,26 @@ export function createBotService({ profiles, lastfm, messenger, views, widgetHtm
     const snapshot = user
       ? await getWidgetState(user)
       : makeState('', [], 'Configure seu Last.fm com /setuser usuario.', 'profile_missing');
-    let created = null;
     try {
-      created = await messenger.widget(chatId, {
+      return await messenger.widget(chatId, {
         html: widgetHtml,
         caption: user ? `Last.fm · @${user} · painel musical` : 'Last.fm · configure seu perfil',
         data: compactState(snapshot),
       });
     } catch (error) {
       record(error, 'send-widget');
+      const detail = typeof error?.description === 'string' ? error.description :
+        typeof error?.message === 'string' ? error.message : '';
+      // Specific Bot API restriction; no fake widget or unrequested keyboard.
+      if (Number(error?.code) === 400 && detail.includes('INPUT_MEDIA_WIDGET_NOT_ALLOWED')) {
+        return send(chatId, views.error(
+          'Widget indisponível pelo Telegram',
+          'O Telegram está bloqueando Widgets para bots comuns em produção (INPUT_MEDIA_WIDGET_NOT_ALLOWED). ' +
+          'O painel não foi enviado. Consulte as músicas com /now e /recentes até que o Telegram libere o recurso.'
+        ));
+      }
+      throw error;
     }
-    // A standard Telegram message is deliberately used as a compatibility menu:
-    // older clients may show only the widget caption and hide Rich buttons.
-    const notice = created?.widget
-      ? `Widget confirmado pela Bot API (mensagem #${created.message_id}). Se o painel não aparecer, este aplicativo pode não suportar Widgets. Use os botões abaixo.`
-      : 'Falha ao criar o Widget na Bot API. O painel não foi confirmado. Use os botões abaixo para consultar seu Last.fm.';
-    await messenger.menu(chatId, notice);
-    return created;
   }
   async function dispatch(chatId, userId, action) {
     const user = await profiles.get(userId);
