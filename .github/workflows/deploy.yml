@@ -40,6 +40,10 @@ jobs:
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
         run: node scripts/inject-secret.mjs
+      - name: Diagnóstico read-only do /setuser no runtime Serverless
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud run endpoints/diagnoseSetuser '{}'
       - name: Sincronizar revisão do Telegram Serverless
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
