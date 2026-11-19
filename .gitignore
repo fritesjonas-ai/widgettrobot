@@ -1,0 +1,7 @@
+node_modules/
+.tgcloud/
+.env
+.env.*
+!*.example
+.DS_Store
+tgcloud/lib/lastfm-key.generated.js

@@ -1,0 +1,19 @@
+{
+  "name": "widgettrobot",
+  "version": "2.0.4",
+  "private": true,
+  "type": "module",
+  "description": "Last.fm com Telegram Bot API 10.4, Rich Messages, HTML Widget e GitHub Actions",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build:config": "node scripts/inject-secret.mjs",
+    "deploy": "npm test && npm run check && npm run build:config && tgcloud fetch && tgcloud push && tgcloud migrate --safe && tgcloud webhook sync"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@tgcloud/cli": "^0.2.0"
+  }
+}

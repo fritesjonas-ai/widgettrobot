@@ -1,0 +1,58 @@
+name: Deploy widgettrobot — Rich Messages + Widgets
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: widgettrobot-telegram-serverless
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar CLI
+        run: npm install --no-audit --no-fund
+      - name: Testar módulos, respostas Rich e limites do Widget
+        run: |
+          npm test
+          npm run check
+      - name: Validar secrets
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+        run: |
+          test -n "$TGCLOUD_TOKEN" || { echo '::error::Configure TGCLOUD_TOKEN'; exit 1; }
+          test -n "$LASTFM_API_KEY" || { echo '::error::Configure LASTFM_API_KEY'; exit 1; }
+      - name: Gerar módulo privado Last.fm
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+        run: node scripts/inject-secret.mjs
+      - name: Sincronizar revisão do Telegram Serverless
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud fetch
+      - name: Publicar módulos
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud push tgcloud/schema.js tgcloud/handlers/ tgcloud/lib/
+      - name: Aplicar migrações aditivas
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud migrate --safe
+      - name: Habilitar callbacks e eventos do Widget
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud webhook sync
