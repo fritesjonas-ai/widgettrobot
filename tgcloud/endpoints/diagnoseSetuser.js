@@ -84,6 +84,28 @@ export default async function () {
   } catch(error) {
     report.archiveProbe = { errorName: error?.name || 'unknown' };
   }
+  // Check whether an alternate keyless public catalogue can identify missing covers.
+  try {
+    const response = await fetch('https://api.deezer.com/search/album?q=' +
+      encodeURIComponent('Cher Believe') + '&limit=10');
+    let items = [];
+    if (response.ok) {
+      const body = await response.json();
+      items = (body?.data || []).slice(0, 5).map(x => ({
+        title: x.title, artist: x.artist?.name, hasCover: Boolean(x.cover_big),
+      }));
+    }
+    report.deezer = { status: response.status, items };
+  } catch(error) { report.deezer = { errorName: error?.name || 'unknown' }; }
+  try {
+    const response = await fetch('https://ws.audioscrobbler.com/2.0/?method=album.getInfo&' +
+      'artist=Cher&album=Believe&format=json&api_key=' + encodeURIComponent(LASTFM_API_KEY));
+    const body = await response.json();
+    report.albumMetadata = { status: response.status,
+      hasMbid: Boolean(body?.album?.mbid),
+      mbid: typeof body?.album?.mbid === 'string' ? body.album.mbid.slice(0,40) : null,
+      images: body?.album?.image?.length || 0 };
+  } catch(error) { report.albumMetadata = { errorName: error?.name || 'unknown' }; }
   // Sentinel negative ID is not a Telegram user. Never overwrite any existing row.
   const repository = createProfileRepository({ db, eq, profiles });
   const sentinelId = -700000000;
