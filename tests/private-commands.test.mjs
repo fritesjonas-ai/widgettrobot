@@ -52,6 +52,7 @@ test('falhas ou divergências na resposta oficial não são tratadas como sucess
     async getMyCommands() { return [{ command: 'start', description: 'Divergente' }]; },
   }), /não confirmou/);
   assert.throws(() => validatePrivateCommands([
-    ...PRIVATE_COMMANDS, PRIVATE_COMMANDS[0],
+    { command: 'start', description: 'Abrir o bot' },
+    { command: 'start', description: 'Comando duplicado' },
   ]), /inválidos\/duplicados/);
 });
