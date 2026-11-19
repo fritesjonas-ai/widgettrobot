@@ -4,7 +4,7 @@ import { makeState, compactState } from '../domain/lastfm-parser.js';
 import { ExternalServiceError, StorageError, lastfmErrorDetail, telegramFailure } from '../domain/errors.js';
 
 /** Application use cases. All SDK, HTTP, persistence and Telegram calls enter via ports. */
-export function createBotService({ profiles, lastfm, messenger, views, logger = console }) {
+export function createBotService({ profiles, lastfm, coverArt = null, messenger, views, logger = console }) {
   if (!profiles || !lastfm || !messenger || !views) throw new Error('Portas do bot não configuradas.');
   const privateChat = (chat, from) => chat?.type === 'private' &&
     Number.isSafeInteger(chat.id) && chat.id === from?.id;
@@ -13,13 +13,14 @@ export function createBotService({ profiles, lastfm, messenger, views, logger = 
   const state = async user => {
     const tracks = await recent(user, 5);
     if (tracks[0] && !tracks[0].image) {
-      try {
-        const cover = await lastfm.coverFor(tracks[0]);
-        if (cover) tracks[0] = { ...tracks[0], image: cover };
-      } catch (error) {
-        // Artwork lookups must not hide a valid music result; record failures.
-        record(error, 'lastfm-cover');
+      let image = '';
+      try { image = await lastfm.coverFor(tracks[0]); }
+      catch (error) { record(error, 'lastfm-cover'); }
+      if (!image && coverArt?.find) {
+        try { image = await coverArt.find(tracks[0].artist, tracks[0].album); }
+        catch (error) { record(error, 'cover-art-archive'); }
       }
+      if (image) tracks[0] = { ...tracks[0], image };
     }
     return makeState(user, tracks);
   };

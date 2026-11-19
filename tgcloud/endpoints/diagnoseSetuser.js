@@ -4,6 +4,7 @@ import { profiles } from '../schema.js';
 import { LASTFM_API_KEY } from '../lib/lastfm-key.js';
 import { createProfileRepository } from '../lib/infrastructure/profile-repository.js';
 import { createLastfmClient } from '../lib/infrastructure/lastfm-client.js';
+import { createCoverArtArchiveClient } from '../lib/infrastructure/cover-art-archive.js';
 import { makeState, compactState } from '../lib/domain/lastfm-parser.js';
 
 // Executado somente via tgcloud run; não é publicado como endpoint.
@@ -38,6 +39,13 @@ export default async function () {
       kind: typeof error?.kind === 'string' ? error.kind : 'unexpected',
       apiCode: Number.isInteger(error?.apiCode) ? error.apiCode : null,
     };
+  }
+  // Read-only catalogue diagnostic: no Telegram profile is queried.
+  try {
+    const art = await createCoverArtArchiveClient({ request: fetch }).find('Cher', 'Believe');
+    report.archive = { ok: true, hasCover: Boolean(art) };
+  } catch (error) {
+    report.archive = { ok: false, errorName: error?.name || 'unknown' };
   }
   // Sentinel negative ID is not a Telegram user. Never overwrite any existing row.
   const repository = createProfileRepository({ db, eq, profiles });
