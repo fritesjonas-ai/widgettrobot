@@ -11,7 +11,7 @@ export const WIDGET_ACTION = Object.freeze({
 
 const COMMANDS = Object.freeze({
   '/start': ACTION.START, '/ajuda': ACTION.HELP, '/help': ACTION.HELP,
-  '/widget': ACTION.WIDGET, '/painel': ACTION.WIDGET,
+  '/widget': ACTION.WIDGET, '/painel': ACTION.WIDGET, '/card': ACTION.WIDGET,
   '/now': ACTION.NOW, '/tocando': ACTION.NOW,
   '/recentes': ACTION.RECENT, '/perfil': ACTION.PROFILE,
 });

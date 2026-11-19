@@ -3,7 +3,7 @@
   "version": "2.0.4",
   "private": true,
   "type": "module",
-  "description": "Last.fm com Telegram Bot API 10.4, Rich Messages, HTML Widget e GitHub Actions",
+  "description": "Card musical Last.fm via Telegram Rich Messages e GitHub Actions",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check.mjs",

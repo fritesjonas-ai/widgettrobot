@@ -7,7 +7,6 @@ import { createLastfmClient } from './infrastructure/lastfm-client.js';
 import { createProfileRepository } from './infrastructure/profile-repository.js';
 import { createTelegramMessenger } from './infrastructure/telegram-messenger.js';
 import { richViews } from './presentation/rich.js';
-import { LASTFM_WIDGET_HTML } from './presentation/widget.js';
 import { createBotService } from './application/bot-service.js';
 
 export function createBot() {
@@ -16,6 +15,5 @@ export function createBot() {
     lastfm: createLastfmClient({ request: fetch, apiKey: LASTFM_API_KEY }),
     messenger: createTelegramMessenger({ api }),
     views: richViews,
-    widgetHtml: LASTFM_WIDGET_HTML,
   });
 }

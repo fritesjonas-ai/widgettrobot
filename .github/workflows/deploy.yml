@@ -1,4 +1,4 @@
-name: Deploy widgettrobot — Rich Messages + Widgets
+name: Deploy widgettrobot — Rich Music Cards
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
           node-version: '22'
       - name: Instalar CLI
         run: npm install --no-audit --no-fund
-      - name: Testar módulos, respostas Rich e limites do Widget
+      - name: Testar módulos e card musical Rich
         run: |
           npm test
           npm run check
@@ -56,7 +56,7 @@ jobs:
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
         run: npx tgcloud migrate --safe
-      - name: Habilitar callbacks e eventos do Widget
+      - name: Habilitar callbacks Rich e eventos legados
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
         run: npx tgcloud webhook sync

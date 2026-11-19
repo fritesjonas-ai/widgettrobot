@@ -4,8 +4,8 @@ import { makeState, compactState } from '../domain/lastfm-parser.js';
 import { ExternalServiceError, StorageError, lastfmErrorDetail, telegramFailure } from '../domain/errors.js';
 
 /** Application use cases. All SDK, HTTP, persistence and Telegram calls enter via ports. */
-export function createBotService({ profiles, lastfm, messenger, views, widgetHtml, logger = console }) {
-  if (!profiles || !lastfm || !messenger || !views || !widgetHtml) throw new Error('Portas do bot não configuradas.');
+export function createBotService({ profiles, lastfm, messenger, views, logger = console }) {
+  if (!profiles || !lastfm || !messenger || !views) throw new Error('Portas do bot não configuradas.');
   const privateChat = (chat, from) => chat?.type === 'private' &&
     Number.isSafeInteger(chat.id) && chat.id === from?.id;
   const send = (chatId, view) => messenger.rich(chatId, view);
@@ -38,47 +38,23 @@ export function createBotService({ profiles, lastfm, messenger, views, widgetHtm
       return send(chatId, failureView(error));
     }
   }
-  async function getWidgetState(user) {
-    try { return await state(user); }
+  async function sendCard(chatId, user) {
+    if (!user) return send(chatId, views.musicCard({ user: '', mode: 'empty' }));
+    let snapshot;
+    try { snapshot = await state(user); }
     catch (error) {
-      record(error, 'widget-lastfm');
-      return makeState(user, [], lastfmErrorDetail(error),
-        error instanceof ExternalServiceError ? error.kind : 'internal');
+      if (!(error instanceof ExternalServiceError)) throw error;
+      record(error, 'lastfm-card');
+      snapshot = { user, mode: 'error', error: lastfmErrorDetail(error) };
     }
-  }
-  async function sendPanel(chatId, user) {
-    const snapshot = user
-      ? await getWidgetState(user)
-      : makeState('', [], 'Configure seu Last.fm com /setuser usuario.', 'profile_missing');
-    try {
-      return await messenger.widget(chatId, {
-        html: widgetHtml,
-        caption: user ? `Last.fm · @${user} · painel musical` : 'Last.fm · configure seu perfil',
-        data: compactState(snapshot),
-      });
-    } catch (error) {
-      record(error, 'send-widget');
-      const detail = typeof error?.description === 'string' ? error.description :
-        typeof error?.message === 'string' ? error.message : '';
-      // Specific Bot API restriction; no fake widget or unrequested keyboard.
-      if (Number(error?.code) === 400 && detail.includes('INPUT_MEDIA_WIDGET_NOT_ALLOWED')) {
-        return send(chatId, views.error(
-          'Widget indisponível pelo Telegram',
-          'O Telegram está bloqueando Widgets para bots comuns em produção (INPUT_MEDIA_WIDGET_NOT_ALLOWED). ' +
-          'O painel não foi enviado. Consulte as músicas com /now e /recentes até que o Telegram libere o recurso.'
-        ));
-      }
-      throw error;
-    }
+    return send(chatId, views.musicCard(snapshot));
   }
   async function dispatch(chatId, userId, action) {
     const user = await profiles.get(userId);
-    if (action === ACTION.START) {
-      await send(chatId, views.welcome(user || ''));
-      return sendPanel(chatId, user);
-    }
+    if (action === ACTION.START) return user
+      ? sendCard(chatId, user) : send(chatId, views.welcome(''));
     if (action === ACTION.HELP) return send(chatId, views.welcome(user || ''));
-    if (action === ACTION.WIDGET) return sendPanel(chatId, user);
+    if (action === ACTION.WIDGET) return sendCard(chatId, user);
     if (action === ACTION.PROFILE) return send(chatId, views.profile(user || ''));
     if (!user) return send(chatId, views.profile(''));
     if (action === ACTION.NOW) {
@@ -118,8 +94,7 @@ export function createBotService({ profiles, lastfm, messenger, views, widgetHtm
         }
         // Never replace a stored profile unless Last.fm validation succeeded.
         await profiles.save(chatId, input.username);
-        await send(chatId, views.linked(input.username));
-        return sendPanel(chatId, input.username);
+        return sendCard(chatId, input.username);
       }
       if (input.kind === 'unlink') {
         if (!input.confirmed) return send(chatId, views.unlinkHelp());
@@ -159,7 +134,12 @@ export function createBotService({ profiles, lastfm, messenger, views, widgetHtm
       return withVisibleError(query.chat.id, 'widget-rich', () => dispatch(query.chat.id, query.from.id, action));
     }
     if (!user) return updateWidget(query, makeState('', [], 'Configure o Last.fm com /setuser.', 'profile_missing'));
-    return updateWidget(query, await getWidgetState(user));
+    try { return updateWidget(query, await state(user)); }
+    catch (error) {
+      record(error, 'legacy-widget-lastfm');
+      return updateWidget(query, makeState(user, [], lastfmErrorDetail(error),
+        error instanceof ExternalServiceError ? error.kind : 'internal'));
+    }
   }
   async function updateWidget(query, snapshot) {
     const data = compactState(snapshot);
