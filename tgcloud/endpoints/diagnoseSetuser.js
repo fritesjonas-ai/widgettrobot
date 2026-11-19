@@ -2,6 +2,7 @@ import { db, fetch } from 'sdk';
 import { eq } from 'sdk/db';
 import { profiles } from '../schema.js';
 import { LASTFM_API_KEY } from '../lib/lastfm-key.js';
+import { createProfileRepository } from '../lib/infrastructure/profile-repository.js';
 import { createLastfmClient } from '../lib/infrastructure/lastfm-client.js';
 
 // Executado somente via tgcloud run; não é publicado como endpoint.
@@ -19,12 +20,36 @@ export default async function () {
       status: Number.isInteger(error?.status) ? error.status : null,
     };
   }
+  // Sentinel negative ID is not a Telegram user. Never overwrite any existing row.
+  const repository = createProfileRepository({ db, eq, profiles });
+  const sentinelId = -700000000;
+  let created = false;
   try {
-    const row = await db.select().from(profiles).where(eq(profiles.telegramId, -1)).get();
-    report.storage = { ok: true, found: row != null };
+    if (await repository.get(sentinelId) !== null) {
+      report.storage = { ok: false, kind: 'sentinel_occupied' };
+    } else {
+      await repository.save(sentinelId, 'widgettrobot_diagnostic');
+      created = true;
+      const found = await repository.get(sentinelId);
+      report.storage = { ok: found === 'widgettrobot_diagnostic', savedAndRead: found === 'widgettrobot_diagnostic' };
+    }
   } catch (error) {
     report.storage = { ok: false, name: typeof error?.name === 'string' ? error.name : 'unknown',
-      code: typeof error?.code === 'string' ? error.code.slice(0, 40) : null };
+      operation: typeof error?.operation === 'string' ? error.operation : null,
+      code: typeof error?.dbCode === 'string' ? error.dbCode : null };
+  } finally {
+    if (created) {
+      try {
+        await repository.remove(sentinelId);
+        report.storage.cleaned = (await repository.get(sentinelId)) === null;
+      } catch (error) {
+        report.storage.cleaned = false;
+        report.storage.cleanupError = typeof error?.name === 'string' ? error.name : 'unknown';
+      }
+    }
+  }
+  if (!report.lastfm?.ok || !report.storage?.ok || report.storage.cleaned !== true) {
+    throw new Error('Runtime /setuser validation failed: '+JSON.stringify(report));
   }
   return report;
 }
