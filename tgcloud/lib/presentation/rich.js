@@ -10,35 +10,31 @@ const MENU = row(button('Atualizar card', ACTION.WIDGET, 'primary'), button('Úl
 
 function musicCard(state) {
   const user = state.user || '';
-  if (!user) return '<h2>♫ Seu Last.fm</h2><p>Nenhuma conta vinculada.</p>' +
-    '<blockquote>Envie <code>/setuser seu_usuario_lastfm</code> para ver seu card musical.</blockquote>' + MENU;
+  if (!user) return '<h3>Last.fm não configurado</h3>' +
+    '<p>Envie <code>/setuser usuario</code> para criar seu card musical.</p>';
+
   const mode = state.mode || 'empty';
   const label = mode === 'playing' ? '● TOCANDO AGORA' :
     mode === 'last' ? 'ÚLTIMA REPRODUÇÃO' :
-    mode === 'error' ? 'NÃO FOI POSSÍVEL ATUALIZAR' : 'SEM REPRODUÇÕES';
-  const cover = state.image && mode !== 'error'
-    ? '<figure><img src="' + escapeHtml(state.image) +
-      '"/><figcaption>Capa do álbum</figcaption></figure>'
-    : mode === 'playing' || mode === 'last'
-      ? '<p><i>Capa não disponível no catálogo do Last.fm.</i></p>' : '';
-  const details = mode === 'error' ?
-    '<p>' + escapeHtml(state.error || 'Falha ao consultar o Last.fm.') + '</p>' :
-    mode === 'empty' ? '<p>Nenhuma reprodução recente encontrada para esta conta.</p>' :
-    '<h3>' + escapeHtml(state.title || 'Música desconhecida') + '</h3>' +
-    '<p><b>' + escapeHtml(state.artist || 'Artista desconhecido') + '</b></p>' +
-    (state.album ? '<p>Álbum: ' + escapeHtml(state.album) + '</p>' : '');
-  const recent = mode !== 'error' && Array.isArray(state.recent) && state.recent.length > 1 ?
-    '<details><summary>Outras reproduções recentes</summary><ol>' +
-    state.recent.slice(1, 4).map(track =>
-      '<li>' + escapeHtml(track.artist) + ' — ' + escapeHtml(track.title) + '</li>').join('') +
-    '</ol></details>' : '';
-  return '<h2>♫ Last.fm · Card musical</h2>' +
-    '<p><b>' + label + '</b> · <a href="' + profileUrl(user) + '">@' + escapeHtml(user) + '</a></p>' +
-    cover + details + recent + MENU +
-    row('<tg-button type="url" url="' + profileUrl(user) + '">Abrir perfil Last.fm</tg-button>') +
-    '<footer>Atualize pelo botão acima. As informações vêm do scrobbling do Last.fm.</footer>';
-}
+    mode === 'error' ? 'ERRO NO LAST.FM' : 'SEM REPRODUÇÕES';
 
+  const cover = state.image && (mode === 'playing' || mode === 'last')
+    ? '<figure><img src="' + escapeHtml(state.image) + '"/></figure>' : '';
+  const details = mode === 'error'
+    ? '<p>' + escapeHtml(state.error || 'Não foi possível consultar o Last.fm.') + '</p>'
+    : mode === 'playing' || mode === 'last'
+      ? '<h3>' + escapeHtml(state.title || 'Música desconhecida') + '</h3>' +
+        '<p><b>' + escapeHtml(state.artist || 'Artista desconhecido') + '</b></p>' +
+        (state.album ? '<p>' + escapeHtml(state.album) + '</p>' : '')
+      : '';
+
+  const actions = row(
+    button('Atualizar', ACTION.WIDGET, 'primary'),
+    button('Recentes', ACTION.RECENT),
+  ) + row('<tg-button type="url" url="' + profileUrl(user) + '">Perfil Last.fm</tg-button>');
+
+  return '<p><b>' + label + '</b></p>' + cover + details + actions;
+}
 
 export const richViews = Object.freeze({
   welcome(user = '') {

@@ -95,9 +95,11 @@ test('/setuser grava perfil e envia card Rich contendo música e ações', async
   assert.match(card, /TOCANDO AGORA/);
   assert.match(card, /<h3>Starlight<\/h3>/);
   assert.match(card, /<b>Muse<\/b>/);
-  assert.match(card, /Álbum: Black Holes/);
-  assert.match(card, /<tg-button type="callback_data" data="wt:widget" style="primary">Atualizar card<\/tg-button>/);
-  assert.match(card, /<tg-button type="url" url="https:\/\/www\.last\.fm\/user\/pessoa123">/);
+  assert.match(card, /<p>Black Holes<\/p>/);
+  assert.match(card, /<tg-button type="callback_data" data="wt:widget" style="primary">Atualizar<\/tg-button>/);
+  assert.match(card, /<tg-button type="url" url="https:\/\/www\.last\.fm\/user\/pessoa123">Perfil Last.fm<\/tg-button>/);
+  assert.doesNotMatch(card, /Card musical|Capa do álbum|Outras reproduções recentes|figcaption|<footer>|@pessoa123/);
+  assert.equal((card.match(/<tg-button /g) || []).length, 3);
   assert.doesNotMatch(card, /<html|<script|inline_keyboard|sendWidget/i);
 });
 
@@ -107,7 +109,7 @@ test('/widget, /painel e /card geram apenas Rich Message de música', async () =
     h.clear();
     await h.bot.onMessage(message(cmd));
     assert.deepEqual(h.calls.map(x => x.method), ['sendRichMessage']);
-    assert.match(html(h.calls[0]), /Card musical/);
+    assert.match(html(h.calls[0]), /TOCANDO AGORA/);
     assert.match(html(h.calls[0]), /Starlight/);
   }
 });
@@ -124,7 +126,7 @@ test('/widget sem perfil dá instrução Rich sem falsa música', async () => {
   await h.bot.onMessage(message('/widget'));
   assert.deepEqual(h.calls.map(x => x.method), ['sendRichMessage']);
   assert.equal(h.requests.length, 0);
-  assert.match(html(h.calls[0]), /Nenhuma conta vinculada/);
+  assert.match(html(h.calls[0]), /Last.fm não configurado/);
   assert.match(html(h.calls[0]), /\/setuser/);
 });
 
@@ -149,7 +151,8 @@ test('capa válida é incorporada em bloco Rich figure, sem teclado inline', asy
   const cover = 'https://lastfm.freetls.fastly.net/i/u/300x300/demo.jpg';
   const h = setup(payload(song('With Cover', 'Artist', true, cover)));
   await link(h);
-  assert.match(html(h.calls[0]), /<figure><img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/demo\.jpg"\/><figcaption>Capa do álbum<\/figcaption><\/figure>/);
+  assert.match(html(h.calls[0]), /<figure><img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/demo\.jpg"\/><\/figure>/);
+  assert.doesNotMatch(html(h.calls[0]), /figcaption|Capa do álbum/);
   assert.deepEqual(Object.keys(h.calls[0].data).sort(), ['chat_id', 'rich_message']);
 });
 
@@ -165,7 +168,7 @@ test('quando recentes não traz capa, album.getInfo fornece a imagem no card Ric
     ['user.getRecentTracks', 'user.getRecentTracks', 'album.getInfo']);
   assert.equal(h.requests[2].searchParams.get('album'), 'Black Holes');
   assert.match(html(h.calls[0]), /<img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/believe\.jpg"\/>/);
-  assert.match(html(h.calls[0]), /Capa do álbum/);
+  assert.doesNotMatch(html(h.calls[0]), /figcaption|Capa do álbum/);
 });
 
 test('track.getInfo recupera a capa quando album.getInfo não tem imagem', async () => {
@@ -192,11 +195,11 @@ test('entrada de capa vazia ou placeholder é ignorada; imagens pequenas válida
   assert.doesNotMatch(html(h.calls[0]), /2a96cbd8b46e442fc41c2b86b821562f/);
 });
 
-test('sem capa na API o card informa ausência e preserva música, sem capa inventada', async () => {
+test('sem capa na API o card mantém a música sem texto redundante nem imagem inventada', async () => {
   const h = setup(payload(song('No Image', 'Artist', true, '')));
   await link(h);
   assert.match(html(h.calls[0]), /No Image/);
-  assert.match(html(h.calls[0]), /Capa não disponível no catálogo do Last.fm/);
+  assert.doesNotMatch(html(h.calls[0]), /Capa não disponível/);
   assert.doesNotMatch(html(h.calls[0]), /<img/);
 });
 
@@ -205,7 +208,7 @@ test('erro no método de capa não oculta música nem vaza a chave Last.fm', asy
   h.setAlbumInfo({ error: 29, message: 'Rate limit' });
   await link(h);
   assert.match(html(h.calls[0]), /No Image/);
-  assert.match(html(h.calls[0]), /Capa não disponível/);
+  assert.doesNotMatch(html(h.calls[0]), /Capa não disponível/);
   assert.ok(h.logs.some(entry => entry[1].operation === 'lastfm-cover' &&
     entry[1].code === 29));
   assert.doesNotMatch(JSON.stringify(h.calls) + JSON.stringify(h.logs), /test-only-key/);
@@ -279,7 +282,7 @@ test('/remover confirmar apaga perfil e /widget volta às instruções', async (
   assert.equal(h.stored.has(123), false);
   h.clear();
   await h.bot.onMessage(message('/widget'));
-  assert.match(html(h.calls[0]), /Nenhuma conta vinculada/);
+  assert.match(html(h.calls[0]), /Last.fm não configurado/);
 });
 
 test('rejeição Last.fm HTTP 503 não vira card de lista vazia', async () => {

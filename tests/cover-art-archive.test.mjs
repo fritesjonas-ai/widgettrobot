@@ -68,6 +68,6 @@ test('fallback sem resposta não quebra o card Rich', async () => {
   await bot.onMessage({chat:{id:123,type:'private'},from:{id:123},text:'/widget'});
   assert.equal(sent.length,1);
   assert.match(sent[0],/Believe/);
-  assert.match(sent[0],/Capa não disponível/);
+  assert.doesNotMatch(sent[0],/<img|Capa não disponível/);
   assert.ok(errors.some(x=>x[1].operation==='cover-art-archive'));
 });
