@@ -8,10 +8,16 @@ export function createLastfmClient({ request, apiKey }) {
     async recent(username, limit = 5) {
       if (!apiKey) throw new ExternalServiceError('invalid_key', 'API key não configurada');
       const n = Math.max(1, Math.min(10, Number(limit) || 5));
-      const params = new URLSearchParams({
-        method: 'user.getRecentTracks', user: username,
-        api_key: apiKey, format: 'json', limit: String(n),
-      });
+      // Telegram Serverless does not provide the URL or URLSearchParams globals.
+      // Encode each parameter with the standard ECMAScript encodeURIComponent.
+      const params = [
+        ['method', 'user.getRecentTracks'],
+        ['user', username],
+        ['api_key', apiKey],
+        ['format', 'json'],
+        ['limit', String(n)],
+      ].map(([name, value]) =>
+        `${encodeURIComponent(name)}=${encodeURIComponent(value)}`).join('&');
       let response;
       try {
         response = await request('https://ws.audioscrobbler.com/2.0/?' + params);

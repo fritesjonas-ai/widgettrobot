@@ -76,6 +76,31 @@ async function link(h, username = 'pessoa123') {
   await h.bot.onMessage(message('/setuser ' + username));
 }
 
+test('/setuser usa codificação de URL compatível com o runtime Serverless', async () => {
+  const calls = [];
+  const client = createLastfmClient({
+    apiKey: 'abc+123&xyz',
+    request: async url => {
+      calls.push(url);
+      return { ok: true, status: 200, json: async () => tracks(song('OK', 'Last.fm')) };
+    },
+  });
+  const originalURL = globalThis.URL;
+  const originalParams = globalThis.URLSearchParams;
+  try {
+    globalThis.URL = undefined;
+    globalThis.URLSearchParams = undefined;
+    const result = await client.recent('a b&c', 1);
+    assert.equal(result[0].title, 'OK');
+  } finally {
+    globalThis.URL = originalURL;
+    globalThis.URLSearchParams = originalParams;
+  }
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /user=a%20b%26c/);
+  assert.match(calls[0], /api_key=abc%2B123%26xyz/);
+});
+
 test('Last.fm nowplaying, últimas faixas e formato Rich seguem os contratos documentados', async () => {
   const h = setup();
   await link(h);
