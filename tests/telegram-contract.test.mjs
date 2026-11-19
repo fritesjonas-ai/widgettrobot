@@ -33,12 +33,12 @@ function setup({ payload = tracks(song('Starlight', 'Muse', true)), status = 200
   const fails = {};
   let music = payload, httpStatus = status, networkError = false, badJson = false;
   const logger = { error(...values) { logs.push(values); } };
-  const api = Object.fromEntries(['sendRichMessage', 'sendWidget', 'answerWidgetQuery',
+  const api = Object.fromEntries(['sendRichMessage', 'sendWidget', 'sendMessage', 'answerWidgetQuery',
     'answerCallbackQuery', 'editMessageWidgetData'].map(method => [method, async data => {
     activity.push(method);
     calls.push({ method, data });
     if (fails[method]) throw fails[method];
-    return method === 'sendWidget' ? { message_id: 77 } :
+    return method === 'sendWidget' ? { message_id: 77, widget: { html: '<p>widget</p>' } } :
       method === 'sendRichMessage' ? { message_id: 200 } : true;
   }]));
   const profiles = {
@@ -105,14 +105,17 @@ test('/setuser usa codificação de URL compatível com o runtime Serverless', a
 test('/start e /widget enviam um Widget real mesmo sem perfil Last.fm', async () => {
   const h = setup();
   await h.bot.onMessage(message('/start'));
-  assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage', 'sendWidget']);
+  assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage', 'sendWidget', 'sendMessage']);
   assert.match(html(h.calls[0]), /widgettrobot/);
   assert.equal(h.calls[1].data.chat_id, 123);
   assert.equal(h.calls[1].data.allow_queries, true);
   assert.equal(JSON.parse(h.calls[1].data.chat_data).k, 'profile_missing');
+  assert.equal(h.calls[2].method, 'sendMessage');
+  assert.equal(h.calls[2].data.reply_markup.inline_keyboard[0][0].callback_data, 'wt:widget');
+  assert.match(h.calls[2].data.text, /Widget confirmado pela Bot API/);
   h.clear();
   await h.bot.onMessage(message('/widget'));
-  assert.deepEqual(h.calls.map(c => c.method), ['sendWidget']);
+  assert.deepEqual(h.calls.map(c => c.method), ['sendWidget', 'sendMessage']);
   assert.match(JSON.parse(h.calls[0].data.chat_data).e, /Configure seu Last.fm/);
 });
 
@@ -120,7 +123,7 @@ test('/setuser confirma vínculo e envia Widget com a reprodução do Last.fm', 
   const h = setup({ payload: tracks(song('Música ao vivo', 'Artista', true)) });
   await h.bot.onMessage(message('/setuser usuario-real'));
   assert.equal(h.stored.get(123), 'usuario-real');
-  assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage', 'sendWidget']);
+  assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage', 'sendWidget', 'sendMessage']);
   assert.match(html(h.calls[0]), /Perfil vinculado/);
   assert.equal(h.calls[1].data.caption, 'Last.fm · @usuario-real · painel musical');
   const data = JSON.parse(h.calls[1].data.chat_data);
@@ -144,6 +147,22 @@ test('estado e capas do Widget não dependem de URL e TextEncoder do navegador',
     globalThis.TextEncoder = oldEncoder;
     globalThis.URL = oldURL;
   }
+});
+
+test('Bot API sem Message.widget não é tratada como Widget entregue e mostra menu nativo', async () => {
+  const h = setup();
+  const gateway = createTelegramMessenger({
+    api: {
+      sendWidget: async () => ({ message_id: 78 }),
+      sendMessage: async () => ({ message_id: 79 }),
+    },
+    logger: { error() {} },
+  });
+  await assert.rejects(gateway.widget(123, {
+    html: '<p>Teste</p>', caption: 'Diagnóstico', data: '{}',
+  }), /Message.widget/);
+  const r = await gateway.menu(123, 'Diagnóstico de suporte ao Widget');
+  assert.equal(r.message_id, 79);
 });
 
 test('Last.fm nowplaying, últimas faixas e formato Rich seguem os contratos documentados', async () => {
@@ -357,7 +376,7 @@ test('Widget controla payload UTF-8 dentro de 1024 bytes com nomes internacionai
   await link(h);
   h.clear();
   await h.bot.onMessage(message('/widget'));
-  const call = h.calls.at(-1);
+  const call = h.calls.find(c => c.method === 'sendWidget');
   assert.equal(call.method, 'sendWidget');
   assert.equal(call.data.allow_queries, true);
   assert.ok(Buffer.byteLength(call.data.chat_data, 'utf8') <= 1024);
@@ -492,7 +511,7 @@ test('payloads reais Telegram seguem campos e tipos documentados para Rich, Widg
   h.clear();
   await h.bot.onMessage(message('/start'));
   assert.equal(h.calls[0].method, 'sendRichMessage');
-  assert.deepEqual(Object.keys(h.calls[0].data).sort(), ['chat_id', 'rich_message']);
+  assert.deepEqual(Object.keys(h.calls[0].data).sort(), ['chat_id', 'reply_markup', 'rich_message']);
   assert.equal(h.calls[0].data.chat_id, 123);
   assert.equal(typeof h.calls[0].data.rich_message.html, 'string');
   assert.match(h.calls[0].data.rich_message.html, /<tg-button type="callback_data"/);
