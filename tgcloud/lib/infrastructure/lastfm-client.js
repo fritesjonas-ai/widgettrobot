@@ -1,4 +1,5 @@
 import { parseRecentTracks, coverFromImages, validCoverUrl } from '../domain/lastfm-parser.js';
+import { parseRanking, parseUserInfo, parseLovedTracks, parseSimilarTracks, parseSimilarArtists } from '../domain/lastfm-insights.js';
 import { ExternalServiceError, classifyLastfmError } from '../domain/errors.js';
 
 /** Last.fm API adapter. Only the first track's artwork is enriched when needed. */
@@ -87,6 +88,44 @@ export function createLastfmClient({ request, apiKey }) {
         return parseRecentTracks(payload);
       } catch {
         throw new ExternalServiceError('bad_response', 'Estrutura de faixas inválida no Last.fm', { status });
+      }
+    },
+    async top(username, kind = 'tracks', period = '7day', limit = 5) {
+      const methods = { tracks: ['user.getTopTracks','toptracks','track'],
+        albums: ['user.getTopAlbums','topalbums','album'],
+        artists: ['user.getTopArtists','topartists','artist'] };
+      if (!Object.hasOwn(methods,kind) || !['overall','7day','1month','3month','6month','12month'].includes(period)) {
+        throw new TypeError('Ranking: filtro inválido');
+      }
+      const [method, root, item] = methods[kind];
+      const { payload } = await query(method, { user:username, period, limit:Math.max(1,Math.min(10,Number(limit)||5)) });
+      return parseRanking(payload,root,item,kind);
+    },
+    async info(username) {
+      const { payload } = await query('user.getInfo', {user:username});
+      return parseUserInfo(payload);
+    },
+    async loved(username, limit = 5) {
+      const { payload } = await query('user.getLovedTracks', {user:username,limit:Math.max(1,Math.min(10,Number(limit)||5))});
+      return parseLovedTracks(payload);
+    },
+    async similar(artist, title, limit = 5) {
+      if (!artist || !title) return { kind:'tracks', items:[] };
+      let items = [];
+      try {
+        const { payload } = await query('track.getSimilar', {artist,track:title,autocorrect:1,limit:Math.max(1,Math.min(10,Number(limit)||5))});
+        items = parseSimilarTracks(payload);
+      } catch (error) {
+        if (!(error instanceof ExternalServiceError) || ![6,7].includes(error.apiCode)) throw error;
+      }
+      if (items.length) return {kind:'tracks',items};
+      // Some tracks lack a similarity model. Fall back to artist-level similarity.
+      try {
+        const { payload } = await query('artist.getSimilar', {artist,autocorrect:1,limit:Math.max(1,Math.min(10,Number(limit)||5))});
+        return {kind:'artists',items:parseSimilarArtists(payload)};
+      } catch (error) {
+        if (error instanceof ExternalServiceError && [6,7].includes(error.apiCode)) return {kind:'artists',items:[]};
+        throw error;
       }
     },
     coverFor,
