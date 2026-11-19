@@ -76,6 +76,38 @@ async function link(h, username = 'pessoa123') {
   await h.bot.onMessage(message('/setuser ' + username));
 }
 
+test('card musical usa apenas capa, título H1 bold, música — álbum e artista H2 itálico', () => {
+  const rich = richViews.musicCard({
+    user: 'pessoa123', mode: 'playing',
+    image: 'https://lastfm.freetls.fastly.net/i/u/300x300/demo.jpg',
+    title: 'A & B', artist: 'Artista <X>', album: 'Álbum & Outros',
+  });
+  const cover = '<figure><img src="https://lastfm.freetls.fastly.net/i/u/300x300/demo.jpg"/></figure>';
+  assert.ok(rich.startsWith(cover + '<h1><b>A &amp; B</b></h1>'));
+  assert.match(rich, /<p>A &amp; B — Álbum &amp; Outros<\/p>/);
+  assert.match(rich, /<h2><i>Artista &lt;X&gt;<\/i><\/h2>/);
+  assert.equal((rich.match(/<h1>/g) || []).length, 1);
+  assert.equal((rich.match(/<h2>/g) || []).length, 1);
+  assert.doesNotMatch(rich, /<h3>|figcaption|<footer>|TOCANDO AGORA|ÚLTIMA REPRODUÇÃO|inline_keyboard|reply_markup/);
+  for (const action of ['tops', 'stats', 'loved', 'weekly', 'discover']) {
+    assert.match(rich, new RegExp('data="wt:' + action + '"'));
+  }
+  assert.equal((rich.match(/<tg-button /g) || []).length, 8);
+});
+
+test('card sem álbum omite a linha música — álbum; estados vazios e de erro continuam legíveis', () => {
+  const base = { user: 'pessoa123', title: 'Faixa', artist: 'Banda', album: '', image: '' };
+  const playing = richViews.musicCard({ ...base, mode: 'playing' });
+  assert.match(playing, /<h1><b>Faixa<\/b><\/h1><h2><i>Banda<\/i><\/h2>/);
+  assert.doesNotMatch(playing, / — |<img/);
+  const empty = richViews.musicCard({ ...base, mode: 'empty' });
+  assert.match(empty, /Nenhuma reprodução recente encontrada/);
+  assert.doesNotMatch(empty, /Faixa|Banda/);
+  const error = richViews.musicCard({ ...base, mode: 'error', error: 'Last.fm indisponível' });
+  assert.match(error, /Last.fm indisponível/);
+  assert.doesNotMatch(error, /Faixa|Banda/);
+});
+
 test('/start sem perfil fornece instrução Rich e não chama Last.fm nem Widget', async () => {
   const h = setup();
   await h.bot.onMessage(message('/start'));
@@ -92,10 +124,10 @@ test('/setuser grava perfil e envia card Rich contendo música e ações', async
   assert.deepEqual(h.calls.map(x => x.method), ['sendRichMessage']);
   assert.equal(h.requests.length, 2);
   const card = html(h.calls[0]);
-  assert.match(card, /TOCANDO AGORA/);
-  assert.match(card, /<h3>Starlight<\/h3>/);
-  assert.match(card, /<b>Muse<\/b>/);
-  assert.match(card, /<p>Black Holes<\/p>/);
+  assert.match(card, /<h1><b>Starlight<\/b><\/h1>/);
+  assert.match(card, /<p>Starlight — Black Holes<\/p>/);
+  assert.match(card, /<h2><i>Muse<\/i><\/h2>/);
+  assert.doesNotMatch(card, /TOCANDO AGORA|ÚLTIMA REPRODUÇÃO/);
   assert.match(card, /<tg-button type="callback_data" data="wt:widget" style="primary">Atualizar<\/tg-button>/);
   assert.match(card, /<tg-button type="url" url="https:\/\/www\.last\.fm\/user\/pessoa123">Perfil Last.fm<\/tg-button>/);
   assert.doesNotMatch(card, /Card musical|Capa do álbum|Outras reproduções recentes|figcaption|<footer>|@pessoa123/);
@@ -112,7 +144,7 @@ test('/widget, /painel e /card geram apenas Rich Message de música', async () =
     h.clear();
     await h.bot.onMessage(message(cmd));
     assert.deepEqual(h.calls.map(x => x.method), ['sendRichMessage']);
-    assert.match(html(h.calls[0]), /TOCANDO AGORA/);
+    assert.match(html(h.calls[0]), /<h1><b>Starlight<\/b><\/h1>/);
     assert.match(html(h.calls[0]), /Starlight/);
   }
 });
@@ -230,8 +262,10 @@ test('capa externa não aprovada e metadados hostis não entram como HTML execut
 test('/now distingue a última reprodução, sem afirmar que está tocando', async () => {
   const h = setup(payload(song('Yesterday', 'Muse', false))); await link(h); h.clear();
   await h.bot.onMessage(message('/now'));
-  assert.match(html(h.calls[0]), /ÚLTIMA REPRODUÇÃO/);
-  assert.doesNotMatch(html(h.calls[0]), /● TOCANDO AGORA/);
+  assert.match(html(h.calls[0]), /<h1><b>Yesterday<\/b><\/h1>/);
+  assert.match(html(h.calls[0]), /<p>Yesterday — Black Holes<\/p>/);
+  assert.match(html(h.calls[0]), /<h2><i>Muse<\/i><\/h2>/);
+  assert.doesNotMatch(html(h.calls[0]), /TOCANDO AGORA|ÚLTIMA REPRODUÇÃO/);
 });
 
 test('/widget mostra erro do Last.fm como card de erro, sem inventar música', async () => {

@@ -14,19 +14,21 @@ function musicCard(state) {
     '<p>Envie <code>/setuser usuario</code> para criar seu card musical.</p>';
 
   const mode = state.mode || 'empty';
-  const label = mode === 'playing' ? '● TOCANDO AGORA' :
-    mode === 'last' ? 'ÚLTIMA REPRODUÇÃO' :
-    mode === 'error' ? 'ERRO NO LAST.FM' : 'SEM REPRODUÇÕES';
-
   const cover = state.image && (mode === 'playing' || mode === 'last')
     ? '<figure><img src="' + escapeHtml(state.image) + '"/></figure>' : '';
-  const details = mode === 'error'
-    ? '<p>' + escapeHtml(state.error || 'Não foi possível consultar o Last.fm.') + '</p>'
-    : mode === 'playing' || mode === 'last'
-      ? '<h3>' + escapeHtml(state.title || 'Música desconhecida') + '</h3>' +
-        '<p><b>' + escapeHtml(state.artist || 'Artista desconhecido') + '</b></p>' +
-        (state.album ? '<p>' + escapeHtml(state.album) + '</p>' : '')
-      : '';
+
+  let details = '';
+  if (mode === 'playing' || mode === 'last') {
+    const title = escapeHtml(state.title || 'Música desconhecida');
+    const artist = escapeHtml(state.artist || 'Artista desconhecido');
+    details = '<h1><b>' + title + '</b></h1>' +
+      (state.album ? '<p>' + title + ' — ' + escapeHtml(state.album) + '</p>' : '') +
+      '<h2><i>' + artist + '</i></h2>';
+  } else if (mode === 'error') {
+    details = '<p>' + escapeHtml(state.error || 'Não foi possível consultar o Last.fm.') + '</p>';
+  } else {
+    details = '<p>Nenhuma reprodução recente encontrada.</p>';
+  }
 
   const actions = row(
     button('Atualizar', ACTION.WIDGET, 'primary'),
@@ -34,7 +36,7 @@ function musicCard(state) {
   ) + INSIGHT_NAV +
     row('<tg-button type="url" url="' + profileUrl(user) + '">Perfil Last.fm</tg-button>');
 
-  return '<p><b>' + label + '</b></p>' + cover + details + actions;
+  return cover + details + actions;
 }
 
 const periodButton = (title,category,period) =>
