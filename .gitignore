@@ -4,4 +4,4 @@ node_modules/
 .env.*
 !*.example
 .DS_Store
-tgcloud/lib/lastfm-key.generated.js
+tgcloud/lib/lastfm-key.js

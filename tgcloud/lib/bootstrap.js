@@ -2,7 +2,7 @@
 import { api, db, fetch } from 'sdk';
 import { eq } from 'sdk/db';
 import { profiles } from '../schema.js';
-import { LASTFM_API_KEY } from './lastfm-key.generated.js';
+import { LASTFM_API_KEY } from './lastfm-key.js';
 import { createLastfmClient } from './infrastructure/lastfm-client.js';
 import { createProfileRepository } from './infrastructure/profile-repository.js';
 import { createTelegramMessenger } from './infrastructure/telegram-messenger.js';

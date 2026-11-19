@@ -47,7 +47,7 @@ Os testes exercitam comportamento real com falhas controladas somente nas fronte
 
 Na primeira implantação, o workflow usa push direcionado aos módulos do bot para não excluir módulos remotos não versionados. Mudanças futuras que removam um handler devem ser sincronizadas explicitamente.
 
-O workflow valida, gera `tgcloud/lib/lastfm-key.generated.js` **somente durante o deploy**, publica os módulos, aplica migrações seguras e sincroniza o webhook. A chave gerada é ignorada pelo Git e nunca entra no HTML do Widget.
+O workflow valida, gera `tgcloud/lib/lastfm-key.js` **somente durante o deploy**, publica os módulos, aplica migrações seguras e sincroniza o webhook. A chave gerada é ignorada pelo Git e nunca entra no HTML do Widget.
 
 Para uso local, obtenha os mesmos Secrets e siga o fluxo no workflow `.github/workflows/deploy.yml`.
 

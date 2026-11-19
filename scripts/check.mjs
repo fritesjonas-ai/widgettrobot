@@ -37,7 +37,7 @@ function checkImports(root) {
         if (!imp.startsWith('.')) continue;
         const target = resolve(dirname(path), imp);
         if (!(target.startsWith(resolve('tgcloud') + sep))) throw Error(`Import fora do projeto: ${path} → ${imp}`);
-        if (!existsSync(target) && !target.endsWith('lastfm-key.generated.js')) {
+        if (!existsSync(target) && !target.endsWith('lastfm-key.js')) {
           throw Error(`Import inexistente: ${path} → ${imp}`);
         }
       }
