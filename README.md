@@ -49,3 +49,16 @@ npm run check
 ```
 
 O estado de reprodução depende do scrobbling do Last.fm, não de streaming em tempo real. As informações de músicas são escapadas antes de entrarem no HTML. A migração SQLite é aditiva; nenhum dado do perfil é removido durante o deploy.
+
+## Recursos adaptados do myJAM (somente widgettrobot)
+
+Inspirados pelo fork `fritesjonas-ai/myJAM` e adaptados ao bot de chat privado:
+
+- `/album` (alias `/albnow`): dados e primeiras faixas do álbum da última reprodução, com capa correspondente.
+- `/letra` (alias `/tly`): trecho de até 10 palavras da letra no LRCLIB, quando encontrado, sem reproduzir letras completas.
+- `/buscar termo` (alias `/radiofm termo`): pesquisa de músicas com resultados e links Last.fm em Rich Message.
+- `/resumo` (alias `/myself`): escolha da semana, mês, três meses ou histórico nos botões Rich.
+- `/tops artistas período`: capa da faixa mais ouvida do artista nº 1 **pelo usuário no mesmo período** (entre as primeiras 50 faixas do ranking pessoal); sem correspondência ou imagem, omite a capa.
+- As ações aparecem como `tg-button` nas próprias Rich Messages. Não são teclados inline e não criam HTML Widgets.
+
+O myJAM permanece inalterado. Não foram importados comandos de grupos, scripts de vídeo ou chaves do fork: estes exigiriam permissões, infraestrutura e privacidade próprias.

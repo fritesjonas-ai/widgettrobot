@@ -33,7 +33,7 @@ function musicCard(state) {
   const actions = row(
     button('Atualizar', ACTION.WIDGET, 'primary'),
     button('Recentes', ACTION.RECENT),
-  ) + INSIGHT_NAV +
+  ) + INSIGHT_NAV + FORK_NAV +
     row('<tg-button type="url" url="' + profileUrl(user) + '">Perfil Last.fm</tg-button>');
 
   return cover + details + actions;
@@ -56,6 +56,8 @@ const ranked = (items,kind,limit=5) => {
 const INSIGHT_NAV = row(
   button('Tops',ACTION.TOPS),button('Stats',ACTION.STATS),button('Amadas',ACTION.LOVED),
 ) + row(button('Semana',ACTION.WEEKLY),button('Descobrir',ACTION.DISCOVER));
+const FORK_NAV = row(button('Álbum',ACTION.ALBUM),button('Letra',ACTION.LYRICS)) +
+  row(button('Resumo',ACTION.SUMMARY),button('Buscar',ACTION.SEARCH));
 
 function topsView({kind,period,items,cover}) {
   return '<h3>Top '+TOP_KINDS[kind]+' · '+TOP_PERIODS[period]+'</h3>' + figure(cover) +
@@ -63,7 +65,7 @@ function topsView({kind,period,items,cover}) {
     row(periodButton('Músicas','tracks',period),periodButton('Álbuns','albums',period),periodButton('Artistas','artists',period)) +
     row(periodButton('7d',kind,'7day'),periodButton('1m',kind,'1month'),periodButton('3m',kind,'3month')) +
     row(periodButton('6m',kind,'6month'),periodButton('12m',kind,'12month'),periodButton('Geral',kind,'overall')) +
-    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
+    INSIGHT_NAV + FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function statsView(user,stats,cover='') {
   const year=stats.registered ? new Date(stats.registered*1000).getUTCFullYear() : 0;
@@ -75,21 +77,21 @@ function statsView(user,stats,cover='') {
     ...(year>=2002 && year<=2100?['<p>Desde '+year+'</p>']:[]),
   ];
   return '<h3>Estatísticas · @'+escapeHtml(user)+'</h3>'+figure(cover)+fields.join('')+
-    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
+    INSIGHT_NAV + FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function lovedView(user,tracks,cover='') {
   const list=tracks.length?'<ol>'+tracks.slice(0,5).map(t =>
     '<li>'+escapeHtml(t.artist)+' — <b>'+escapeHtml(t.title)+'</b></li>').join('')+'</ol>'
     :'<p>Nenhuma música amada encontrada.</p>';
   return '<h3>Músicas amadas</h3>'+figure(cover)+list+
-    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
+    INSIGHT_NAV + FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function weeklyView({tracks,artists,albums,cover}) {
   return '<h3>Seus últimos 7 dias</h3>'+figure(cover)+
     '<h4>Músicas</h4>'+ranked(tracks,'tracks',3)+
     '<h4>Artistas</h4>'+ranked(artists,'artists',3)+
     '<h4>Álbuns</h4>'+ranked(albums,'albums',3)+
-    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
+    INSIGHT_NAV + FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function discoverView({seed,result,cover}) {
   const items=result.items||[];
@@ -99,24 +101,62 @@ function discoverView({seed,result,cover}) {
   return '<h3>Descobrir '+(result.kind==='artists'?'artistas':'músicas')+'</h3>'+
     '<p>Com base em '+escapeHtml(seed.artist)+' — '+escapeHtml(seed.title)+'</p>'+
     figure(cover)+list+
-    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
+    INSIGHT_NAV + FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 
+function albumView(track,info,cover) {
+  const album=info?.title||track.album, artist=info?.artist||track.artist;
+  const tracks=info?.tracks||[];
+  return figure(cover) + '<h2>'+escapeHtml(album)+'</h2>'+
+    '<p><i>'+escapeHtml(artist)+'</i></p>'+
+    (tracks.length?'<h3>Faixas</h3><ol>'+tracks.map(t=>'<li>'+escapeHtml(t)+'</li>').join('')+'</ol>':
+      '<p>Lista de faixas indisponível no Last.fm.</p>')+
+    FORK_NAV + INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
+}
+function lyricsView(track,preview,cover) {
+  const status=preview?.status;
+  const detail=status==='preview'
+    ? '<blockquote>'+escapeHtml(preview.excerpt)+'…</blockquote><p>Trecho de até dez palavras.</p>'
+    : status==='instrumental'?'<p>Faixa instrumental.</p>'
+    :status==='missing'?'<p>Trecho não encontrado no LRCLIB.</p>'
+    :'<p>Trecho indisponível no momento.</p>';
+  return figure(cover)+'<h2>'+escapeHtml(track.title)+'</h2>'+
+    '<p><i>'+escapeHtml(track.artist)+'</i></p>'+detail+
+    FORK_NAV + row(button('Card musical',ACTION.WIDGET));
+}
+function searchView(term,tracks,cover) {
+  const url=(item)=>'https://www.last.fm/music/'+encodeURIComponent(item.artist)+
+    '/_/'+encodeURIComponent(item.title);
+  const results=tracks.length?'<ol>'+tracks.map(item=>
+    '<li><a href="'+escapeHtml(url(item))+'">'+escapeHtml(item.title)+'</a> — '+
+    escapeHtml(item.artist)+'</li>').join('')+'</ol>'
+    :'<p>Nenhuma música encontrada.</p>';
+  return figure(cover)+'<h2>Buscar: '+escapeHtml(term)+'</h2>'+results+
+    FORK_NAV + row(button('Card musical',ACTION.WIDGET));
+}
+function summaryView(user) {
+  return '<h2>Meu resumo · @'+escapeHtml(user)+'</h2>'+
+    '<p>Escolha um período para ver as faixas mais ouvidas:</p>'+
+    row(periodButton('Semana','tracks','7day'),periodButton('Mês','tracks','1month'))+
+    row(periodButton('3 meses','tracks','3month'),periodButton('Geral','tracks','overall'))+
+    INSIGHT_NAV + FORK_NAV + row(button('Card musical',ACTION.WIDGET));
+}
 export const richViews = Object.freeze({
   welcome(user = '') {
     return `<h2>widgettrobot</h2><p>Seu Last.fm em Rich Messages no Telegram.</p>` +
       (user ? `<p>Perfil atual: <a href="${profileUrl(user)}">@${escapeHtml(user)}</a>.</p>` :
         `<blockquote>Para começar, envie <code>/setuser seu_usuario_lastfm</code>.</blockquote>`) +
       '<p>Explore: <code>/tops faixas 7d</code>, <code>/stats</code>, <code>/amadas</code>, ' +
-      '<code>/semana</code> e <code>/descobrir</code>.</p>' +
-      INSIGHT_NAV + MENU;
+      '<code>/semana</code>, <code>/descobrir</code>, <code>/album</code>, '+
+      '<code>/letra</code>, <code>/buscar termo</code> e <code>/resumo</code>.</p>' +
+      INSIGHT_NAV + FORK_NAV + MENU;
   },
   profile(user = '') {
     return `<h3>Meu perfil Last.fm</h3>` +
       (user ? `<p>Conectado: <a href="${profileUrl(user)}"><b>@${escapeHtml(user)}</b></a>.</p>` :
         `<p>Nenhum usuário Last.fm vinculado.</p>`) +
       `<p>Para alterar, envie <code>/setuser usuario</code>. Para desvincular, envie <code>/remover confirmar</code>.</p>` +
-      INSIGHT_NAV + row(button('Card musical', ACTION.WIDGET, 'primary'), button('Ajuda', ACTION.HELP));
+      INSIGHT_NAV + FORK_NAV + row(button('Card musical', ACTION.WIDGET, 'primary'), button('Ajuda', ACTION.HELP));
   },
   musicCard,
   current: musicCard,
@@ -125,10 +165,18 @@ export const richViews = Object.freeze({
   loved: lovedView,
   weekly: weeklyView,
   discover: discoverView,
+  album: albumView,
+  lyrics: lyricsView,
+  searchResults: searchView,
+  summary: summaryView,
+  searchHelp() {
+    return '<h3>Buscar música</h3><p>Envie <code>/buscar nome da música ou artista</code>.</p>'+
+      FORK_NAV + row(button('Card musical',ACTION.WIDGET));
+  },
   recent(user, tracks) {
     const list = tracks.slice(0, 5).map(t => `<li>${escapeHtml(t.artist)} — <b>${escapeHtml(t.title)}</b>${t.nowplaying ? ' (tocando agora)' : ''}</li>`).join('');
     return `<h3>Últimas músicas</h3><p>Perfil <a href="${profileUrl(user)}">@${escapeHtml(user)}</a></p>` +
-      (list ? `<ol>${list}</ol>` : '<p>Nenhuma reprodução recente encontrada.</p>') + INSIGHT_NAV + MENU;
+      (list ? `<ol>${list}</ol>` : '<p>Nenhuma reprodução recente encontrada.</p>') + INSIGHT_NAV + FORK_NAV + MENU;
   },
   error(title, detail) {
     return `<h3>${escapeHtml(title)}</h3><p>${escapeHtml(detail)}</p>` + MENU;

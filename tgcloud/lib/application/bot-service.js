@@ -4,7 +4,7 @@ import { makeState, compactState } from '../domain/lastfm-parser.js';
 import { ExternalServiceError, StorageError, lastfmErrorDetail, telegramFailure } from '../domain/errors.js';
 
 /** Application use cases. All SDK, HTTP, persistence and Telegram calls enter via ports. */
-export function createBotService({ profiles, lastfm, coverArt = null, deezerCover = null, messenger, views, logger = console }) {
+export function createBotService({ profiles, lastfm, lyrics = null, coverArt = null, deezerCover = null, messenger, views, logger = console }) {
   if (!profiles || !lastfm || !messenger || !views) throw new Error('Portas do bot não configuradas.');
   const privateChat = (chat, from) => chat?.type === 'private' &&
     Number.isSafeInteger(chat.id) && chat.id === from?.id;
@@ -76,18 +76,32 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
     const action=typeof input==='string' ? input : input?.action;
     const category=typeof input==='object' ? input.category||'tracks' : 'tracks';
     const period=typeof input==='object' ? input.period||'7day' : '7day';
+    const term=typeof input==='object' ? input.term||'' : '';
     const user = await profiles.get(userId);
     if (action === ACTION.START) return user
       ? sendCard(chatId, user) : send(chatId, views.welcome(''));
     if (action === ACTION.HELP) return send(chatId, views.welcome(user || ''));
     if (action === ACTION.WIDGET) return sendCard(chatId, user);
     if (action === ACTION.PROFILE) return send(chatId, views.profile(user || ''));
-    if (!user) return send(chatId, views.profile(''));
+    if (action === ACTION.SEARCH && !term) return send(chatId, views.searchHelp());
+    if (!user && action !== ACTION.SEARCH) return send(chatId, views.profile(''));
+
+    if (action === ACTION.SUMMARY) return send(chatId, views.summary(user));
     if ([ACTION.TOPS,ACTION.STATS,ACTION.LOVED,ACTION.WEEKLY,ACTION.DISCOVER].includes(action)) {
       try {
         if (action===ACTION.TOPS) {
           const items=await lastfm.top(user,category,period,5);
-          const cover=category==='artists'?'':await artworkFor(items[0]);
+          let cover='';
+          if (category==='artists' && items[0]?.artist) {
+            // Derived from the owner's *personal* plays for the very same period;
+            // artist.getTopTracks is global and would select someone else's ranking.
+            const topTracks=await lastfm.top(user,'tracks',period,50);
+            const name=items[0].artist.toLocaleLowerCase();
+            const match=topTracks.find(track=>track.artist.toLocaleLowerCase()===name);
+            cover=await artworkFor(match);
+          } else {
+            cover=await artworkFor(items[0]);
+          }
           return send(chatId,views.tops({kind:category,period,items,cover}));
         }
         if (action===ACTION.STATS) {
@@ -117,13 +131,41 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
           if (!latest.length) return send(chatId,views.error('Descobrir','Nenhuma música recente disponível.'));
           const seed=latest[0];
           const result=await lastfm.similar(seed.artist,seed.title,5);
-          const cover=result.kind==='tracks'?await artworkFor(result.items[0]):'';
+          const cover=result.kind==='tracks'?await artworkFor(result.items[0]):await artworkFor(seed);
           return send(chatId,views.discover({seed,result,cover}));
         }
       } catch(error) {
         if (!(error instanceof ExternalServiceError)) throw error;
         record(error,'lastfm-insights');
         return send(chatId,failureView(error,'Não foi possível consultar o Last.fm'));
+      }
+    }
+    if ([ACTION.ALBUM,ACTION.LYRICS,ACTION.SEARCH].includes(action)) {
+      try {
+        if (action===ACTION.SEARCH) {
+          const tracks=await lastfm.search(term,5);
+          const cover=await artworkFor(tracks[0]);
+          return send(chatId,views.searchResults(term,tracks,cover));
+        }
+        const recentTracks=await recent(user,1);
+        const current=recentTracks[0];
+        if (!current) return send(chatId,views.error('Nenhuma reprodução','Não há música recente para consultar.'));
+        if (action===ACTION.ALBUM) {
+          if (!current.album) return send(chatId,views.error('Álbum indisponível',
+            'O Last.fm não informou o álbum da última música.'));
+          const info=await lastfm.albumInfo(current.artist,current.album);
+          const cover=info?.image||await artworkFor(current);
+          return send(chatId,views.album(current,info,cover));
+        }
+        const preview=lyrics?.preview
+          ? await lyrics.preview(current.artist,current.title)
+          : {status:'unavailable',excerpt:''};
+        const cover=await artworkFor(current);
+        return send(chatId,views.lyrics(current,preview,cover));
+      } catch(error) {
+        if(!(error instanceof ExternalServiceError))throw error;
+        record(error,'myjam-port');
+        return send(chatId,failureView(error,'Não foi possível consultar a música'));
       }
     }
     if (action === ACTION.NOW) {
