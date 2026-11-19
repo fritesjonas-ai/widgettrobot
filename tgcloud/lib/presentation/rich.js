@@ -1,5 +1,5 @@
 import { escapeHtml, profileUrl } from '../domain/format.js';
-import { ACTION, callbackData } from '../domain/actions.js';
+import { ACTION, TOP_KINDS, TOP_PERIODS, callbackData } from '../domain/actions.js';
 
 const button = (title, action, style = '') =>
   `<tg-button type="callback_data" data="${callbackData(action)}"${style ? ` style="${style}"` : ''}>${title}</tg-button>`;
@@ -36,6 +36,68 @@ function musicCard(state) {
   return '<p><b>' + label + '</b></p>' + cover + details + actions;
 }
 
+const periodButton = (title,category,period) =>
+  '<tg-button type="callback_data" data="wt:tops:' + category + ':' + period + '">' + title + '</tg-button>';
+const figure = image => image ? '<figure><img src="' + escapeHtml(image) + '"/></figure>' : '';
+const number = value => String(Number(value)||0).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+const ranked = (items,kind,limit=5) => {
+  if(!items?.length) return '<p>Nenhum registro neste período.</p>';
+  return '<ol>' + items.slice(0,limit).map(item => {
+    const name=kind==='artists' ? item.artist :
+      kind==='albums' ? item.artist+' — '+item.album : item.artist+' — '+item.title;
+    return '<li>' + escapeHtml(name) +
+      (Number.isFinite(item.playcount) ? ' · <b>' + number(item.playcount) + '</b>' : '') +
+      '</li>';
+  }).join('') + '</ol>';
+};
+const INSIGHT_NAV = row(
+  button('Tops',ACTION.TOPS),button('Stats',ACTION.STATS),button('Amadas',ACTION.LOVED),
+) + row(button('Semana',ACTION.WEEKLY),button('Descobrir',ACTION.DISCOVER));
+
+function topsView({kind,period,items,cover}) {
+  return '<h3>Top '+TOP_KINDS[kind]+' · '+TOP_PERIODS[period]+'</h3>' + figure(cover) +
+    ranked(items,kind) +
+    row(periodButton('Músicas','tracks',period),periodButton('Álbuns','albums',period),periodButton('Artistas','artists',period)) +
+    row(periodButton('7d',kind,'7day'),periodButton('1m',kind,'1month'),periodButton('3m',kind,'3month')) +
+    row(periodButton('6m',kind,'6month'),periodButton('12m',kind,'12month'),periodButton('Geral',kind,'overall'));
+}
+function statsView(user,stats,cover='') {
+  const year=stats.registered ? new Date(stats.registered*1000).getUTCFullYear() : 0;
+  const fields=[
+    '<p><b>'+number(stats.scrobbles)+'</b> scrobbles</p>',
+    ...(stats.artists!==null?['<p>'+number(stats.artists)+' artistas</p>']:[]),
+    ...(stats.albums!==null?['<p>'+number(stats.albums)+' álbuns</p>']:[]),
+    ...(stats.tracks!==null?['<p>'+number(stats.tracks)+' músicas</p>']:[]),
+    ...(year>=2002 && year<=2100?['<p>Desde '+year+'</p>']:[]),
+  ];
+  return '<h3>Estatísticas · @'+escapeHtml(user)+'</h3>'+figure(cover)+fields.join('')+
+    row(button('Atualizar',ACTION.STATS,'primary'),button('Tops',ACTION.TOPS));
+}
+function lovedView(user,tracks,cover='') {
+  const list=tracks.length?'<ol>'+tracks.slice(0,5).map(t =>
+    '<li>'+escapeHtml(t.artist)+' — <b>'+escapeHtml(t.title)+'</b></li>').join('')+'</ol>'
+    :'<p>Nenhuma música amada encontrada.</p>';
+  return '<h3>Músicas amadas</h3>'+figure(cover)+list+
+    row(button('Atualizar',ACTION.LOVED,'primary'),button('Descobrir',ACTION.DISCOVER));
+}
+function weeklyView({tracks,artists,albums,cover}) {
+  return '<h3>Seus últimos 7 dias</h3>'+figure(cover)+
+    '<h4>Músicas</h4>'+ranked(tracks,'tracks',3)+
+    '<h4>Artistas</h4>'+ranked(artists,'artists',3)+
+    '<h4>Álbuns</h4>'+ranked(albums,'albums',3)+
+    row(button('Atualizar',ACTION.WEEKLY,'primary'),button('Tops',ACTION.TOPS));
+}
+function discoverView({seed,result,cover}) {
+  const items=result.items||[];
+  const list=items.length?'<ol>'+items.slice(0,5).map(item =>
+    '<li>'+escapeHtml(result.kind==='artists'?item.artist:item.artist+' — '+item.title)+'</li>').join('')+'</ol>'
+    :'<p>Sem recomendações disponíveis para esta reprodução.</p>';
+  return '<h3>Descobrir '+(result.kind==='artists'?'artistas':'músicas')+'</h3>'+
+    '<p>Com base em '+escapeHtml(seed.artist)+' — '+escapeHtml(seed.title)+'</p>'+
+    figure(cover)+list+
+    row(button('Atualizar',ACTION.DISCOVER,'primary'),button('Card',ACTION.WIDGET));
+}
+
 export const richViews = Object.freeze({
   welcome(user = '') {
     return `<h2>widgettrobot</h2><p>Seu Last.fm em Rich Messages no Telegram.</p>` +
@@ -52,6 +114,11 @@ export const richViews = Object.freeze({
   },
   musicCard,
   current: musicCard,
+  tops: topsView,
+  stats: statsView,
+  loved: lovedView,
+  weekly: weeklyView,
+  discover: discoverView,
   recent(user, tracks) {
     const list = tracks.slice(0, 5).map(t => `<li>${escapeHtml(t.artist)} — <b>${escapeHtml(t.title)}</b>${t.nowplaying ? ' (tocando agora)' : ''}</li>`).join('');
     return `<h3>Últimas músicas</h3><p>Perfil <a href="${profileUrl(user)}">@${escapeHtml(user)}</a></p>` +

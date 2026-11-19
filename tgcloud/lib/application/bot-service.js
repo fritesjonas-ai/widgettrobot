@@ -10,23 +10,29 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
     Number.isSafeInteger(chat.id) && chat.id === from?.id;
   const send = (chatId, view) => messenger.rich(chatId, view);
   const recent = (user, count = 5) => lastfm.recent(user, count);
-  const state = async user => {
-    const tracks = await recent(user, 5);
-    if (tracks[0] && !tracks[0].image) {
-      let image = '';
-      try { image = await lastfm.coverFor(tracks[0]); }
-      catch (error) { record(error, 'lastfm-cover'); }
-      if (!image && deezerCover?.find) {
-        try { image = await deezerCover.find(tracks[0].artist, tracks[0].album); }
-        catch (error) { record(error, 'deezer-cover'); }
-      }
-      if (!image && coverArt?.find) {
-        try { image = await coverArt.find(tracks[0].artist, tracks[0].album); }
-        catch (error) { record(error, 'cover-art-archive'); }
-      }
-      if (image) tracks[0] = { ...tracks[0], image };
+  async function artworkFor(track) {
+    if (!track) return '';
+    if (track.image) return track.image;
+    let image='';
+    try { image=await lastfm.coverFor(track); }
+    catch(error) { record(error,'lastfm-cover'); }
+    if (!image && deezerCover?.find && track.album) {
+      try { image=await deezerCover.find(track.artist,track.album); }
+      catch(error) { record(error,'deezer-cover'); }
     }
-    return makeState(user, tracks);
+    if (!image && coverArt?.find && track.album) {
+      try { image=await coverArt.find(track.artist,track.album); }
+      catch(error) { record(error,'cover-art-archive'); }
+    }
+    return image;
+  }
+  const state = async user => {
+    const tracks=await recent(user,5);
+    if(tracks[0]) {
+      const image=await artworkFor(tracks[0]);
+      if(image) tracks[0]={...tracks[0],image};
+    }
+    return makeState(user,tracks);
   };
 
   function record(error, operation) {
@@ -66,7 +72,10 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
     }
     return send(chatId, views.musicCard(snapshot));
   }
-  async function dispatch(chatId, userId, action) {
+  async function dispatch(chatId, userId, input) {
+    const action=typeof input==='string' ? input : input?.action;
+    const category=typeof input==='object' ? input.category||'tracks' : 'tracks';
+    const period=typeof input==='object' ? input.period||'7day' : '7day';
     const user = await profiles.get(userId);
     if (action === ACTION.START) return user
       ? sendCard(chatId, user) : send(chatId, views.welcome(''));
@@ -74,6 +83,49 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
     if (action === ACTION.WIDGET) return sendCard(chatId, user);
     if (action === ACTION.PROFILE) return send(chatId, views.profile(user || ''));
     if (!user) return send(chatId, views.profile(''));
+    if ([ACTION.TOPS,ACTION.STATS,ACTION.LOVED,ACTION.WEEKLY,ACTION.DISCOVER].includes(action)) {
+      try {
+        if (action===ACTION.TOPS) {
+          const items=await lastfm.top(user,category,period,5);
+          const cover=category==='artists'?'':await artworkFor(items[0]);
+          return send(chatId,views.tops({kind:category,period,items,cover}));
+        }
+        if (action===ACTION.STATS) {
+          const info=await lastfm.info(user);
+          let cover='';
+          try {
+            const latest=await recent(user,1);
+            cover=await artworkFor(latest[0]);
+          } catch(error) { record(error,'stats-cover'); }
+          return send(chatId,views.stats(user,info,cover));
+        }
+        if (action===ACTION.LOVED) {
+          const tracks=await lastfm.loved(user,5);
+          const cover=await artworkFor(tracks[0]);
+          return send(chatId,views.loved(user,tracks,cover));
+        }
+        if (action===ACTION.WEEKLY) {
+          // Rolling seven days, not a calendar-week chart.
+          const tracks=await lastfm.top(user,'tracks','7day',3);
+          const artists=await lastfm.top(user,'artists','7day',3);
+          const albums=await lastfm.top(user,'albums','7day',3);
+          const cover=await artworkFor(tracks[0]);
+          return send(chatId,views.weekly({tracks,artists,albums,cover}));
+        }
+        if (action===ACTION.DISCOVER) {
+          const latest=await recent(user,1);
+          if (!latest.length) return send(chatId,views.error('Descobrir','Nenhuma música recente disponível.'));
+          const seed=latest[0];
+          const result=await lastfm.similar(seed.artist,seed.title,5);
+          const cover=result.kind==='tracks'?await artworkFor(result.items[0]):'';
+          return send(chatId,views.discover({seed,result,cover}));
+        }
+      } catch(error) {
+        if (!(error instanceof ExternalServiceError)) throw error;
+        record(error,'lastfm-insights');
+        return send(chatId,failureView(error,'Não foi possível consultar o Last.fm'));
+      }
+    }
     if (action === ACTION.NOW) {
       try { return await send(chatId, views.current(await state(user))); }
       catch (error) {
@@ -100,6 +152,7 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
         'Este bot aceita comandos de texto. Use /ajuda para ver os comandos disponíveis.'));
       const input = parseMessage(message.text);
       if (input.kind === 'unknown') return send(chatId, views.error('Comando desconhecido', 'Use /ajuda para conhecer os comandos.'));
+      if (input.kind === 'invalid') return send(chatId, views.error('Formato inválido', input.usage));
       if (input.kind === 'link') {
         if (!validateUsername(input.username)) return send(chatId, views.error('Usuário inválido',
           'Envie /setuser seu_usuario_lastfm. Use de 2 a 32 caracteres: letras, números, _ e -.'));
@@ -118,7 +171,7 @@ export function createBotService({ profiles, lastfm, coverArt = null, deezerCove
         await profiles.remove(chatId);
         return send(chatId, views.unlinked());
       }
-      return dispatch(chatId, chatId, input.action);
+      return dispatch(chatId, chatId, input);
     });
   }
   async function onCallback(query) {

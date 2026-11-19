@@ -8,7 +8,8 @@ import { parseMessage } from '../tgcloud/lib/domain/actions.js';
 test('menu privado contém comandos implementados, descrições e nenhum alias duplicado', () => {
   assert.equal(validatePrivateCommands(), true);
   assert.deepEqual(PRIVATE_COMMANDS.map(x => x.command), [
-    'start', 'setuser', 'widget', 'now', 'recentes', 'perfil', 'remover', 'ajuda',
+    'start', 'setuser', 'widget', 'now', 'recentes', 'tops', 'stats', 'amadas', 'semana', 'descobrir',
+    'perfil', 'remover', 'ajuda',
   ]);
   assert.deepEqual(PRIVATE_SCOPE, { type: 'all_private_chats' });
   assert.equal(parseMessage('/setuser').kind, 'link');
@@ -34,8 +35,8 @@ test('Bot API recebe setMyCommands com escopo privado e verifica os dois idiomas
   };
   const result = await configurePrivateCommands(api);
   assert.deepEqual(result, [
-    { scope: 'all_private_chats', language_code: '', count: 8 },
-    { scope: 'all_private_chats', language_code: 'pt', count: 8 },
+    { scope: 'all_private_chats', language_code: '', count: 13 },
+    { scope: 'all_private_chats', language_code: 'pt', count: 13 },
   ]);
   assert.deepEqual(requests.map(x => x.method), [
     'setMyCommands', 'getMyCommands', 'setMyCommands', 'getMyCommands',

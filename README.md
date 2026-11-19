@@ -21,6 +21,16 @@ O Telegram mostra os comandos disponíveis quando o usuário digita `/` na conve
 
 Comandos listados: `/start`, `/setuser`, `/widget`, `/now`, `/recentes`, `/perfil`, `/remover` e `/ajuda`. Para `/setuser`, informe o usuário Last.fm depois do comando; para desvincular, use `/remover confirmar`. Aliases continuam disponíveis mas não duplicam o menu. Nenhum teclado inline é criado e os comandos não são anunciados para grupos. Referência: https://core.telegram.org/bots/api#setmycommands.
 
+## Novos comandos Last.fm
+
+- `/tops [faixas|albuns|artistas] [7d|1m|3m|6m|12m|geral]` — rankings dos mais ouvidos (padrão: músicas, 7 dias), com botões Rich para categoria e período.
+- `/stats` — scrobbles e informações públicas da conta.
+- `/amadas` — cinco últimas faixas amadas.
+- `/semana` — top 3 músicas, artistas e álbuns **dos últimos 7 dias corridos**, não da semana de calendário.
+- `/descobrir` — sugestões com `track.getSimilar`; caso não existam, usa `artist.getSimilar`.
+
+Os resultados são Rich Messages com tags `<tg-button>`, listas e capa da primeira faixa ou álbum quando disponível. A busca de capas reutiliza Last.fm, Deezer e Cover Art Archive. Rankings de artistas não apresentam uma capa arbitrária. Não há `inline_keyboard`, autenticação adicional da conta ou mudanças na estrutura de perfis SQLite. O menu privado `/` passa a ter 13 comandos. Fontes: https://www.last.fm/api/ e https://core.telegram.org/bots/api.
+
 ## Compatibilidade
 
 Bots comuns podem receber `INPUT_MEDIA_WIDGET_NOT_ALLOWED` ao tentar enviar HTML Widgets. O bot não envia Widgets novos. O handler `widget_query` permanece apenas para atender mensagens legadas eventualmente existentes.
