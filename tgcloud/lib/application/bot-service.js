@@ -14,9 +14,10 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
     if (!track) return '';
     if (track.image) return track.image;
     let image='', album=track.album||'';
+    const recoveredAlbum = !album && typeof lastfm.trackDetails === 'function';
     // Rankings and Loved Tracks often omit album; recover it from the exact
     // Last.fm track before falling through to album-only artwork sources.
-    if (!album && lastfm.trackDetails) {
+    if (recoveredAlbum) {
       try {
         const details=await lastfm.trackDetails(track);
         image=details?.image||'';
@@ -24,7 +25,11 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
       } catch(error) { record(error,'lastfm-track-metadata'); }
     }
     if (image) return image;
-    if (album || !lastfm.trackDetails) {
+    if (recoveredAlbum && album && lastfm.albumCoverFor) {
+      // track.getInfo was already consulted; do not request it a second time.
+      try { image=await lastfm.albumCoverFor(track.artist,album); }
+      catch(error) { record(error,'lastfm-album-cover'); }
+    } else if (!recoveredAlbum) {
       try { image=await lastfm.coverFor({...track,album}); }
       catch(error) { record(error,'lastfm-cover'); }
     }

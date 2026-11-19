@@ -78,22 +78,25 @@ export function createLastfmClient({ request, apiKey }) {
     }
   }
 
+  async function albumCoverFor(artist, album) {
+    if (!artist || !album) return '';
+    try {
+      const { payload } = await query('album.getInfo', { artist, album, autocorrect: 1 });
+      return coverFromImages(payload?.album?.image);
+    } catch (error) {
+      if (error instanceof ExternalServiceError && error.apiCode === 6) return '';
+      throw error;
+    }
+  }
+
   async function coverFor(track) {
     const existing = validCoverUrl(track?.image);
     if (existing) return existing;
     if (!track?.artist || !track?.title) return '';
 
     if (track.album) {
-      try {
-        const { payload } = await query('album.getInfo', {
-          artist: track.artist, album: track.album, autocorrect: 1,
-        });
-        const albumCover = coverFromImages(payload?.album?.image);
-        if (albumCover) return albumCover;
-      } catch (error) {
-        // An album not found in the catalogue isn't a network failure.
-        if (!(error instanceof ExternalServiceError && error.apiCode === 6)) throw error;
-      }
+      const albumCover = await albumCoverFor(track.artist, track.album);
+      if (albumCover) return albumCover;
     }
 
     return (await trackDetails(track)).image;
@@ -195,6 +198,7 @@ export function createLastfmClient({ request, apiKey }) {
         .filter(x=>x.name);
     },
     trackDetails,
+    albumCoverFor,
     coverFor,
   });
 }

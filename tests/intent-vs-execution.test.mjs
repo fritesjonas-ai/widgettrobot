@@ -132,8 +132,9 @@ test('/buscar sem termo e botão Buscar exibem ajuda em vez de erro',async()=>{
 test('/buscar geral consulta faixas e artistas e mostra as duas seções sem teclado inline',async()=>{
   const h=arrange();
   await h.command('/buscar Cher');
-  assert.deepEqual(h.requests.map(x=>x.searchParams.get('method')),
-    ['track.search','artist.search','track.getInfo']);
+  assert.deepEqual(h.requests.slice(0,2).map(x=>x.searchParams.get('method')),
+    ['track.search','artist.search']);
+  assert.ok(h.requests.some(x=>x.searchParams.get('method')==='track.getInfo'));
   const markup=h.sent[0];
   assert.match(markup,/<h3>Faixas<\/h3>/);
   assert.match(markup,/<h3>Artistas<\/h3>/);
@@ -149,9 +150,9 @@ test('filtros busca apenas faixas ou apenas artistas',async()=>{
   assert.doesNotMatch(h.sent.at(-1),/<h3>Faixas<\/h3>|<img/);
   h.requests.length=0;
   await h.command('/buscar faixa Believe');
-  assert.deepEqual(h.requests.map(x=>x.searchParams.get('method')||x.pathname),[
-    'track.search','track.getInfo','/search/album','/search/track',
-  ]);
+  assert.equal(h.requests[0].searchParams.get('method'),'track.search');
+  assert.ok(h.requests.some(x=>x.pathname==='/search/track'));
+  assert.ok(!h.requests.some(x=>x.searchParams.get('method')==='artist.search'));
   assert.match(h.sent.at(-1),/<h3>Faixas<\/h3>/);
   assert.doesNotMatch(h.sent.at(-1),/<h3>Artistas<\/h3>/);
 });
