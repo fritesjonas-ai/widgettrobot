@@ -40,10 +40,6 @@ jobs:
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
         run: node scripts/inject-secret.mjs
-      - name: Verificar Last.fm, capas e SQLite no Serverless
-        env:
-          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
-        run: npx tgcloud run endpoints/diagnoseSetuser '{}'
       - name: Sincronizar revisão do Telegram Serverless
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
@@ -56,6 +52,12 @@ jobs:
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
         run: npx tgcloud migrate --safe
+      - name: Validar revisão publicada com Last.fm, Deezer e SQLite reais
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: |
+          npx tgcloud run endpoints/diagnoseSetuser '{}'
+          npx tgcloud run endpoints/diagnoseFeatures '{}'
       - name: Publicar comandos no menu privado do Telegram
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}

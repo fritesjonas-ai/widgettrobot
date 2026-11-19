@@ -62,3 +62,11 @@ Inspirados pelo fork `fritesjonas-ai/myJAM` e adaptados ao bot de chat privado:
 - As ações aparecem como `tg-button` nas próprias Rich Messages. Não são teclados inline e não criam HTML Widgets.
 
 O myJAM permanece inalterado. Não foram importados comandos de grupos, scripts de vídeo ou chaves do fork: estes exigiriam permissões, infraestrutura e privacidade próprias.
+
+## Correspondência de capas e pesquisa (2.3.1)
+
+Quando um ranking, uma música amada ou uma recomendação não fornece o álbum, o bot consulta `track.getInfo` no Last.fm para recuperar metadados da faixa correspondente. Se não houver imagem, procura capa do álbum no Last.fm, depois no Deezer; também consulta `search/track` no Deezer por **artista e título exatos**, com URL HTTPS de imagem validada. A busca MusicBrainz/Cover Art Archive só recebe álbum verificado. Se não houver correspondência segura, omite a imagem.
+
+`/buscar` sem argumentos abre ajuda (inclusive pelo botão Rich Buscar). `/buscar termo` pesquisa **faixas e artistas**; `/buscar faixa termo` pesquisa apenas faixas; `/buscar artista termo` pesquisa apenas artistas. Usa `track.search` e `artist.search` oficialmente documentados. Continua sem teclado inline.
+
+No CI, os testes simulados rodam antes do deploy; **os diagnósticos reais agora rodam depois de `tgcloud push` e `tgcloud migrate`**, verificando Last.fm, Deezer, armazenamento e saída Rich. Isso verifica a revisão publicada sem enviar mensagens a usuários. A aparência final no cliente Telegram ainda exige teste no aplicativo.

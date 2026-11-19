@@ -13,6 +13,7 @@ function mock(props={}) {
   async recent(){history.push('recent');return [song];},
   async albumInfo(a,b){history.push('albumInfo');return {title:b,artist:a,tracks:['Believe','Strong Enough'],image:COVER};},
   async search(q){history.push('search:'+q);return [{...song}];},
+  async searchArtists(q){history.push('searchArtists:'+q);return [{name:'Cher'}];},
   async top(u,k,p,l){
    history.push('top:'+k+':'+p+':'+l);
    return k==='artists'?[{artist:'Cher',title:'Cher',playcount:45,image:''}]:
@@ -33,9 +34,9 @@ function mock(props={}) {
 test('aliases do myJAM funcionam somente como rotas novas no widgettrobot',()=>{
  assert.deepEqual(parseMessage('/albnow'),{kind:'action',action:'album'});
  assert.deepEqual(parseMessage('/tly'),{kind:'action',action:'lyrics'});
- assert.deepEqual(parseMessage('/radiofm Cher Believe'),{kind:'action',action:'search',term:'Cher Believe'});
+ assert.deepEqual(parseMessage('/radiofm Cher Believe'),{kind:'action',action:'search',mode:'all',term:'Cher Believe'});
  assert.deepEqual(parseMessage('/myself'),{kind:'action',action:'summary'});
- assert.equal(parseMessage('/buscar').kind,'invalid');
+ assert.deepEqual(parseMessage('/buscar'),{kind:'action',action:'search',mode:'all',term:''});
  assert.equal(fromCallback('wt:album'),'album');
  assert.equal(fromCallback('wt:lyrics'),'lyrics');
  assert.equal(fromCallback('wt:search'),'search');
@@ -60,7 +61,7 @@ test('/letra mostra trecho curto do LRCLIB com capa da faixa',async()=>{
 });
 test('/buscar mostra capa do primeiro resultado e HTML escapado',async()=>{
  const h=mock();await h.bot.onMessage(h.msg('/buscar Believe & Cher'));
- assert.deepEqual(h.history,['search:Believe & Cher']);
+ assert.deepEqual(h.history,['search:Believe & Cher','searchArtists:Believe & Cher']);
  assert.match(h.calls[0].html,/Buscar: Believe &amp; Cher/);
  assert.match(h.calls[0].html,/https:\/\/www.last.fm\/music\/Cher\/_\/Believe/);
  assert.match(h.calls[0].html,/<figure><img/);

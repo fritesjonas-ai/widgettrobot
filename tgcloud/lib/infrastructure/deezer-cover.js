@@ -65,10 +65,9 @@ export function createDeezerCoverClient({ request, clock = Date.now }) {
             (album && normalized(item?.album?.title) !== normalized(album))) continue;
         const image = trustedCover(item.album.cover_big) ||
           trustedCover(item.album.cover_medium) || trustedCover(item.album.cover_xl);
-        if (image) {
-          result = { image, album: item.album.title.slice(0, 130) };
-          break;
-        }
+        const matched = { image: image || '', album: item.album.title.slice(0, 130) };
+        if (!result.album) result = matched;
+        if (image) { result = matched; break; }
       }
       if (trackCache.size >= 128) trackCache.delete(trackCache.keys().next().value);
       trackCache.set(key, { value: result, at: now });
