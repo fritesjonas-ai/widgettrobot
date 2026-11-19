@@ -236,7 +236,7 @@ test('/widget mostra erro do Last.fm como card de erro, sem inventar música', a
   h.setPayload({ error: 29, message: 'Rate limit exceeded' });
   await h.bot.onMessage(message('/widget'));
   assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage']);
-  assert.match(html(h.calls[0]), /NÃO FOI POSSÍVEL ATUALIZAR/);
+  assert.match(html(h.calls[0]), /ERRO NO LAST\.FM/);
   assert.match(html(h.calls[0]), /limitou as consultas/);
   assert.doesNotMatch(html(h.calls[0]), /Starlight/);
 });
