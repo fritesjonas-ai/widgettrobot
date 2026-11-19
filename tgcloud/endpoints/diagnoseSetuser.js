@@ -47,6 +47,43 @@ export default async function () {
   } catch (error) {
     report.archive = { ok: false, errorName: error?.name || 'unknown' };
   }
+  // Read-only diagnostics, bounded to known public release-group identifiers.
+  try {
+    const headers = { 'User-Agent': 'widgettrobot/2.1 (https://github.com/fritesjonas-ai/widgettrobot)', Accept: 'application/json' };
+    const q = encodeURIComponent('releasegroup:"Believe" AND artist:"Cher"');
+    const mb = await fetch('https://musicbrainz.org/ws/2/release-group/?query=' + q + '&fmt=json&limit=5', { headers });
+    let groups = [];
+    if (mb.ok) {
+      const parsed = await mb.json();
+      groups = (parsed?.['release-groups'] || []).slice(0, 3).map(item => ({
+        id: item.id, title: item.title, type: item['primary-type'],
+        artist: item['artist-credit']?.filter(c => typeof c === 'object').map(c => c.name || c.artist?.name).join('') || '',
+      }));
+    }
+    const group = await fetch('https://coverartarchive.org/release-group/550fe869-84da-38af-8c7c-f7770ade37da', { headers });
+    let groupImages = null;
+    if (group.ok) {
+      const json = await group.json();
+      groupImages = (json?.images || []).slice(0, 3).map(i => ({
+        front: i.front, approved: i.approved, thumb: Boolean(i.thumbnails?.['500']),
+      }));
+    }
+    const release = await fetch('https://coverartarchive.org/release/2ed5eeca-a58d-4a9a-9508-595cd18f0097', { headers });
+    let releaseImages = null;
+    if (release.ok) {
+      const json = await release.json();
+      releaseImages = (json?.images || []).slice(0, 3).map(i => ({
+        front: i.front, approved: i.approved, thumb: Boolean(i.thumbnails?.['500']),
+      }));
+    }
+    report.archiveProbe = {
+      mbStatus: mb.status, groups,
+      caaGroupStatus: group.status, groupImages,
+      caaReleaseStatus: release.status, releaseImages,
+    };
+  } catch(error) {
+    report.archiveProbe = { errorName: error?.name || 'unknown' };
+  }
   // Sentinel negative ID is not a Telegram user. Never overwrite any existing row.
   const repository = createProfileRepository({ db, eq, profiles });
   const sentinelId = -700000000;
