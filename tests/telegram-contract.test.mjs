@@ -5,6 +5,7 @@ import { createLastfmClient } from '../tgcloud/lib/infrastructure/lastfm-client.
 import { createTelegramMessenger } from '../tgcloud/lib/infrastructure/telegram-messenger.js';
 import { richViews } from '../tgcloud/lib/presentation/rich.js';
 import { LASTFM_WIDGET_HTML } from '../tgcloud/lib/presentation/widget.js';
+import { makeState, compactState } from '../tgcloud/lib/domain/lastfm-parser.js';
 
 const me = { id: 123, is_bot: false };
 const privateChat = { id: 123, type: 'private' };
@@ -101,14 +102,58 @@ test('/setuser usa codificação de URL compatível com o runtime Serverless', a
   assert.match(calls[0], /api_key=abc%2B123%26xyz/);
 });
 
+test('/start e /widget enviam um Widget real mesmo sem perfil Last.fm', async () => {
+  const h = setup();
+  await h.bot.onMessage(message('/start'));
+  assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage', 'sendWidget']);
+  assert.match(html(h.calls[0]), /widgettrobot/);
+  assert.equal(h.calls[1].data.chat_id, 123);
+  assert.equal(h.calls[1].data.allow_queries, true);
+  assert.equal(JSON.parse(h.calls[1].data.chat_data).k, 'profile_missing');
+  h.clear();
+  await h.bot.onMessage(message('/widget'));
+  assert.deepEqual(h.calls.map(c => c.method), ['sendWidget']);
+  assert.match(JSON.parse(h.calls[0].data.chat_data).e, /Configure seu Last.fm/);
+});
+
+test('/setuser confirma vínculo e envia Widget com a reprodução do Last.fm', async () => {
+  const h = setup({ payload: tracks(song('Música ao vivo', 'Artista', true)) });
+  await h.bot.onMessage(message('/setuser usuario-real'));
+  assert.equal(h.stored.get(123), 'usuario-real');
+  assert.deepEqual(h.calls.map(c => c.method), ['sendRichMessage', 'sendWidget']);
+  assert.match(html(h.calls[0]), /Perfil vinculado/);
+  assert.equal(h.calls[1].data.caption, 'Last.fm · @usuario-real · painel musical');
+  const data = JSON.parse(h.calls[1].data.chat_data);
+  assert.equal(data.m, 'playing');
+  assert.equal(data.t, 'Música ao vivo');
+  assert.equal(data.u, 'usuario-real');
+});
+
+test('estado e capas do Widget não dependem de URL e TextEncoder do navegador', async () => {
+  const oldEncoder = globalThis.TextEncoder;
+  const oldURL = globalThis.URL;
+  try {
+    globalThis.TextEncoder = undefined;
+    globalThis.URL = undefined;
+    const compact = compactState(makeState('usuario-real', [{
+      title: 'Música', artist: 'Artista', album: '', image: '', nowplaying: true, playedAt: 0,
+    }]));
+    assert.equal(JSON.parse(compact).m, 'playing');
+    assert.equal(JSON.parse(compact).t, 'Música');
+  } finally {
+    globalThis.TextEncoder = oldEncoder;
+    globalThis.URL = oldURL;
+  }
+});
+
 test('Last.fm nowplaying, últimas faixas e formato Rich seguem os contratos documentados', async () => {
   const h = setup();
   await link(h);
   await h.bot.onMessage(message('/now'));
-  assert.equal(h.requests.length, 2);
+  assert.ok(h.requests.length >= 2);
   assert.equal(h.requests[0].searchParams.get('method'), 'user.getRecentTracks');
   assert.equal(h.requests[0].searchParams.get('limit'), '1');
-  assert.equal(h.requests[1].searchParams.get('limit'), '5');
+  assert.equal(h.requests.at(-1).searchParams.get('limit'), '5');
   assert.match(html(h.calls.at(-1)), /^<h3>Tocando agora<\/h3>/);
   assert.match(html(h.calls.at(-1)), /<b>Starlight<\/b>/);
   h.setPayload(tracks(song('Última Faixa', 'Muse', false)));

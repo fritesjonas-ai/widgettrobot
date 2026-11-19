@@ -46,17 +46,26 @@ export function createBotService({ profiles, lastfm, messenger, views, widgetHtm
         error instanceof ExternalServiceError ? error.kind : 'internal');
     }
   }
+  async function sendPanel(chatId, user) {
+    const snapshot = user
+      ? await getWidgetState(user)
+      : makeState('', [], 'Configure seu Last.fm com /setuser usuario.', 'profile_missing');
+    return messenger.widget(chatId, {
+      html: widgetHtml,
+      caption: user ? `Last.fm · @${user} · painel musical` : 'Last.fm · configure seu perfil',
+      data: compactState(snapshot),
+    });
+  }
   async function dispatch(chatId, userId, action) {
     const user = await profiles.get(userId);
-    if (action === ACTION.HELP || action === ACTION.START) return send(chatId, views.welcome(user || ''));
+    if (action === ACTION.START) {
+      await send(chatId, views.welcome(user || ''));
+      return sendPanel(chatId, user);
+    }
+    if (action === ACTION.HELP) return send(chatId, views.welcome(user || ''));
+    if (action === ACTION.WIDGET) return sendPanel(chatId, user);
     if (action === ACTION.PROFILE) return send(chatId, views.profile(user || ''));
     if (!user) return send(chatId, views.profile(''));
-    if (action === ACTION.WIDGET) {
-      const snapshot = await getWidgetState(user);
-      return messenger.widget(chatId, {
-        html: widgetHtml, caption: `Last.fm · @${user} · painel musical`, data: compactState(snapshot),
-      });
-    }
     if (action === ACTION.NOW) {
       try { return await send(chatId, views.current(await state(user))); }
       catch (error) {
@@ -94,7 +103,8 @@ export function createBotService({ profiles, lastfm, messenger, views, widgetHtm
         }
         // Never replace a stored profile unless Last.fm validation succeeded.
         await profiles.save(chatId, input.username);
-        return send(chatId, views.linked(input.username));
+        await send(chatId, views.linked(input.username));
+        return sendPanel(chatId, input.username);
       }
       if (input.kind === 'unlink') {
         if (!input.confirmed) return send(chatId, views.unlinkHelp());

@@ -4,10 +4,17 @@ import { profiles } from '../schema.js';
 import { LASTFM_API_KEY } from '../lib/lastfm-key.js';
 import { createProfileRepository } from '../lib/infrastructure/profile-repository.js';
 import { createLastfmClient } from '../lib/infrastructure/lastfm-client.js';
+import { makeState, compactState } from '../lib/domain/lastfm-parser.js';
 
 // Executado somente via tgcloud run; não é publicado como endpoint.
 export default async function () {
-  const report = { urlSearchParams: typeof URLSearchParams, url: typeof URL };
+  const report = { urlSearchParams: typeof URLSearchParams, url: typeof URL, textEncoder: typeof TextEncoder };
+  try {
+    const data = compactState(makeState('', [], 'Configure o Last.fm com /setuser.', 'profile_missing'));
+    report.widget = { ok: JSON.parse(data).k === 'profile_missing', dataBytes: data.length };
+  } catch (error) {
+    report.widget = { ok: false, errorName: typeof error?.name === 'string' ? error.name : 'unknown' };
+  }
   try {
     const result = await createLastfmClient({ request: fetch, apiKey: LASTFM_API_KEY }).recent('rj', 1);
     report.lastfm = { ok: true, tracks: result.length };
@@ -48,7 +55,7 @@ export default async function () {
       }
     }
   }
-  if (!report.lastfm?.ok || !report.storage?.ok || report.storage.cleaned !== true) {
+  if (!report.lastfm?.ok || !report.storage?.ok || report.storage.cleaned !== true || !report.widget?.ok) {
     throw new Error('Runtime /setuser validation failed: '+JSON.stringify(report));
   }
   return report;

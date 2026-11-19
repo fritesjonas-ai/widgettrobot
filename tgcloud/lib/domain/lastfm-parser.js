@@ -30,11 +30,11 @@ export function parseRecentTracks(payload) {
 }
 
 export function validCoverUrl(value) {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' || !['lastfm.freetls.fastly.net', 'userserve-ak.last.fm'].includes(url.hostname)) return '';
-    return url.toString();
-  } catch { return ''; }
+  if (typeof value !== 'string') return '';
+  const source = value.trim();
+  // Telegram Serverless does not expose URL; accept only the documented cover hosts.
+  return /^https:\/\/(?:lastfm\.freetls\.fastly\.net|userserve-ak\.last\.fm)(?:\/|$)/i.test(source)
+    ? source : '';
 }
 
 export function makeState(user, list, error = '', errorKind = '') {
@@ -53,7 +53,15 @@ export function makeState(user, list, error = '', errorKind = '') {
   };
 }
 
-const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
+// Count UTF-8 bytes without TextEncoder (not available on Telegram Serverless).
+const bytes = value => {
+  let count = 0;
+  for (const char of JSON.stringify(value)) {
+    const cp = char.codePointAt(0);
+    count += cp <= 0x7F ? 1 : cp <= 0x7FF ? 2 : cp <= 0xFFFF ? 3 : 4;
+  }
+  return count;
+};
 
 export function compactState(state) {
   // Widget chat_data and answerWidgetQuery data: <= 1024 UTF-8 bytes.
