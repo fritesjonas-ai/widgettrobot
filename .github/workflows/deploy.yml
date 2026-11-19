@@ -44,6 +44,10 @@ jobs:
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
         run: npx tgcloud run endpoints/diagnoseSetuser '{}'
+      - name: Diagnosticar métodos Last.fm adicionais (somente leitura)
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud run endpoints/diagnoseInsights '{}'
       - name: Sincronizar revisão do Telegram Serverless
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
