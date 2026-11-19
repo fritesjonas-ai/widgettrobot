@@ -13,15 +13,34 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
   async function artworkFor(track) {
     if (!track) return '';
     if (track.image) return track.image;
-    let image='';
-    try { image=await lastfm.coverFor(track); }
-    catch(error) { record(error,'lastfm-cover'); }
-    if (!image && deezerCover?.find && track.album) {
-      try { image=await deezerCover.find(track.artist,track.album); }
+    let image='', album=track.album||'';
+    // Rankings and Loved Tracks often omit album; recover it from the exact
+    // Last.fm track before falling through to album-only artwork sources.
+    if (!album && lastfm.trackDetails) {
+      try {
+        const details=await lastfm.trackDetails(track);
+        image=details?.image||'';
+        album=details?.album||'';
+      } catch(error) { record(error,'lastfm-track-metadata'); }
+    }
+    if (image) return image;
+    if (album || !lastfm.trackDetails) {
+      try { image=await lastfm.coverFor({...track,album}); }
+      catch(error) { record(error,'lastfm-cover'); }
+    }
+    if (!image && deezerCover?.find && album) {
+      try { image=await deezerCover.find(track.artist,album); }
       catch(error) { record(error,'deezer-cover'); }
     }
-    if (!image && coverArt?.find && track.album) {
-      try { image=await coverArt.find(track.artist,track.album); }
+    if (!image && deezerCover?.findTrack && track.title) {
+      try {
+        const match=await deezerCover.findTrack(track.artist,track.title,album);
+        image=match?.image||'';
+        if (!album) album=match?.album||'';
+      } catch(error) { record(error,'deezer-track-cover'); }
+    }
+    if (!image && coverArt?.find && album) {
+      try { image=await coverArt.find(track.artist,album); }
       catch(error) { record(error,'cover-art-archive'); }
     }
     return image;
@@ -77,6 +96,7 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
     const category=typeof input==='object' ? input.category||'tracks' : 'tracks';
     const period=typeof input==='object' ? input.period||'7day' : '7day';
     const term=typeof input==='object' ? input.term||'' : '';
+    const searchMode=typeof input==='object' ? input.mode||'all' : 'all';
     const user = await profiles.get(userId);
     if (action === ACTION.START) return user
       ? sendCard(chatId, user) : send(chatId, views.welcome(''));
@@ -143,9 +163,10 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
     if ([ACTION.ALBUM,ACTION.LYRICS,ACTION.SEARCH].includes(action)) {
       try {
         if (action===ACTION.SEARCH) {
-          const tracks=await lastfm.search(term,5);
+          const tracks=searchMode==='artists'?[]:await lastfm.search(term,5);
+          const artists=searchMode==='tracks'?[]:await lastfm.searchArtists(term,5);
           const cover=await artworkFor(tracks[0]);
-          return send(chatId,views.searchResults(term,tracks,cover));
+          return send(chatId,views.searchResults(term,tracks,cover,artists,searchMode));
         }
         const recentTracks=await recent(user,1);
         const current=recentTracks[0];

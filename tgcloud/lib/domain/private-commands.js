@@ -15,7 +15,7 @@ export const PRIVATE_COMMANDS = Object.freeze([
   { command: 'descobrir', description: 'Descobrir músicas e artistas semelhantes' },
   { command: 'album', description: 'Ver álbum da última música' },
   { command: 'letra', description: 'Ver um trecho da letra da música' },
-  { command: 'buscar', description: 'Pesquisar músicas no Last.fm' },
+  { command: 'buscar', description: 'Pesquisar músicas e artistas no Last.fm' },
   { command: 'resumo', description: 'Menu pessoal de períodos e rankings' },
   { command: 'perfil', description: 'Consultar sua conta vinculada' },
   { command: 'remover', description: 'Desvincular conta: /remover confirmar' },

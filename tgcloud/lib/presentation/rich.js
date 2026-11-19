@@ -124,14 +124,22 @@ function lyricsView(track,preview,cover) {
     '<p><i>'+escapeHtml(track.artist)+'</i></p>'+detail+
     FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
-function searchView(term,tracks,cover) {
-  const url=(item)=>'https://www.last.fm/music/'+encodeURIComponent(item.artist)+
+function searchView(term,tracks,cover,artists=[],mode='all') {
+  const trackUrl=item=>'https://www.last.fm/music/'+encodeURIComponent(item.artist)+
     '/_/'+encodeURIComponent(item.title);
-  const results=tracks.length?'<ol>'+tracks.map(item=>
-    '<li><a href="'+escapeHtml(url(item))+'">'+escapeHtml(item.title)+'</a> — '+
+  const artistUrl=item=>'https://www.last.fm/music/'+encodeURIComponent(item.name);
+  const songs=tracks.length?'<ol>'+tracks.map(item=>
+    '<li><a href="'+escapeHtml(trackUrl(item))+'">'+escapeHtml(item.title)+'</a> — '+
     escapeHtml(item.artist)+'</li>').join('')+'</ol>'
-    :'<p>Nenhuma música encontrada.</p>';
-  return figure(cover)+'<h2>Buscar: '+escapeHtml(term)+'</h2>'+results+
+    :'<p>Nenhuma faixa encontrada.</p>';
+  const bands=artists.length?'<ol>'+artists.map(item=>
+    '<li><a href="'+escapeHtml(artistUrl(item))+'">'+escapeHtml(item.name)+'</a></li>').join('')+'</ol>'
+    :'<p>Nenhum artista encontrado.</p>';
+  return figure(cover)+'<h2>Buscar: '+escapeHtml(term)+'</h2>'+
+    (mode==='artists'?'':'<h3>Faixas</h3>'+songs)+
+    (mode==='tracks'?'':'<h3>Artistas</h3>'+bands)+
+    '<p>Filtrar: <code>/buscar faixa '+escapeHtml(term)+'</code> ou '+
+    '<code>/buscar artista '+escapeHtml(term)+'</code>.</p>'+
     FORK_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function summaryView(user) {
@@ -170,7 +178,9 @@ export const richViews = Object.freeze({
   searchResults: searchView,
   summary: summaryView,
   searchHelp() {
-    return '<h3>Buscar música</h3><p>Envie <code>/buscar nome da música ou artista</code>.</p>'+
+    return '<h3>Buscar no Last.fm</h3><p>Envie <code>/buscar termo</code> para músicas e artistas, '+
+      '<code>/buscar faixa termo</code> para músicas ou '+
+      '<code>/buscar artista termo</code> para artistas.</p>'+
       FORK_NAV + row(button('Card musical',ACTION.WIDGET));
   },
   recent(user, tracks) {

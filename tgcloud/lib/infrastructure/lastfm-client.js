@@ -48,6 +48,36 @@ export function createLastfmClient({ request, apiKey }) {
     return { payload, status: response.status };
   }
 
+  const normalizeName = value => String(value || '').normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  async function trackDetails(track) {
+    const empty = { album: '', image: '' };
+    if (!track?.artist || !track?.title) return empty;
+    try {
+      const { payload } = await query('track.getInfo', {
+        artist: track.artist, track: track.title, autocorrect: 1,
+      });
+      const data = payload?.track;
+      if (!data || typeof data !== 'object') return empty;
+      const artist = typeof data.artist === 'string' ? data.artist : data.artist?.name;
+      // An autocorrected but different song must never supply artwork.
+      if ((typeof data.name === 'string' && normalizeName(data.name) !== normalizeName(track.title)) ||
+          (typeof artist === 'string' && normalizeName(artist) !== normalizeName(track.artist))) {
+        return empty;
+      }
+      const album = typeof data.album?.title === 'string' ? data.album.title :
+        typeof data.album?.name === 'string' ? data.album.name : '';
+      return {
+        album: album.slice(0, 130),
+        image: coverFromImages(data.album?.image) || coverFromImages(data.image),
+      };
+    } catch (error) {
+      if (error instanceof ExternalServiceError && [6, 7].includes(error.apiCode)) return empty;
+      throw error;
+    }
+  }
+
   async function coverFor(track) {
     const existing = validCoverUrl(track?.image);
     if (existing) return existing;
@@ -66,16 +96,7 @@ export function createLastfmClient({ request, apiKey }) {
       }
     }
 
-    try {
-      const { payload } = await query('track.getInfo', {
-        artist: track.artist, track: track.title, autocorrect: 1,
-      });
-      return coverFromImages(payload?.track?.album?.image) ||
-        coverFromImages(payload?.track?.image);
-    } catch (error) {
-      if (error instanceof ExternalServiceError && error.apiCode === 6) return '';
-      throw error;
-    }
+    return (await trackDetails(track)).image;
   }
 
   return Object.freeze({
@@ -151,7 +172,10 @@ export function createLastfmClient({ request, apiKey }) {
     async search(term, limit=5) {
       if(typeof term!=='string' || !term.trim() || term.length>90) throw new TypeError('Busca inválida');
       const { payload } = await query('track.search', { track:term.trim(),limit:Math.max(1,Math.min(10,Number(limit)||5)) });
-      const raw=payload?.results?.trackmatches?.track;
+      if (!payload?.results?.trackmatches) {
+        throw new ExternalServiceError('bad_response', 'Resposta de pesquisa por faixas inválida');
+      }
+      const raw=payload.results.trackmatches.track;
       const list=Array.isArray(raw)?raw:raw&&typeof raw==='object'?[raw]:[];
       return list.slice(0,5).map(x=>({
         title:String(x?.name||'').slice(0,115),
@@ -159,6 +183,18 @@ export function createLastfmClient({ request, apiKey }) {
         album:'', image:coverFromImages(x?.image),
       })).filter(x=>x.title&&x.artist);
     },
+    async searchArtists(term, limit=5) {
+      if(typeof term!=='string' || !term.trim() || term.length>90) throw new TypeError('Busca inválida');
+      const { payload } = await query('artist.search', { artist:term.trim(),limit:Math.max(1,Math.min(10,Number(limit)||5)) });
+      if (!payload?.results?.artistmatches) {
+        throw new ExternalServiceError('bad_response', 'Resposta de pesquisa por artistas inválida');
+      }
+      const raw=payload.results.artistmatches.artist;
+      const list=Array.isArray(raw)?raw:raw&&typeof raw==='object'?[raw]:[];
+      return list.slice(0,5).map(x=>({name:String(x?.name||'').trim().slice(0,100)}))
+        .filter(x=>x.name);
+    },
+    trackDetails,
     coverFor,
   });
 }

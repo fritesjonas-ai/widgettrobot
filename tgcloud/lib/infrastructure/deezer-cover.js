@@ -18,6 +18,7 @@ function trustedCover(value) {
 export function createDeezerCoverClient({ request, clock = Date.now }) {
   if (typeof request !== 'function') throw new TypeError('Deezer: request ausente');
   const cache = new Map();
+  const trackCache = new Map();
   return Object.freeze({
     async find(artist, album) {
       if (!normalized(artist) || !normalized(album)) return '';
@@ -42,6 +43,36 @@ export function createDeezerCoverClient({ request, clock = Date.now }) {
       if (cache.size >= 128) cache.delete(cache.keys().next().value);
       cache.set(key, { cover, at: now });
       return cover;
+    },
+    async findTrack(artist, title, album = '') {
+      const empty = { image: '', album: '' };
+      if (!normalized(artist) || !normalized(title)) return empty;
+      const key = normalized(artist) + '\u0000' + normalized(title) + '\u0000' + normalized(album);
+      const now = clock();
+      const hit = trackCache.get(key);
+      if (hit && now - hit.at < TTL) return hit.value;
+      const url = 'https://api.deezer.com/search/track?q=' +
+        encodeURIComponent(artist + ' ' + title) + '&limit=15';
+      const response = await request(url);
+      if (!response?.ok) return empty;
+      const json = await response.json();
+      if (!Array.isArray(json?.data)) return empty;
+      let result = empty;
+      for (const item of json.data) {
+        if (normalized(item?.title) !== normalized(title) ||
+            normalized(item?.artist?.name) !== normalized(artist) ||
+            !normalized(item?.album?.title) ||
+            (album && normalized(item?.album?.title) !== normalized(album))) continue;
+        const image = trustedCover(item.album.cover_big) ||
+          trustedCover(item.album.cover_medium) || trustedCover(item.album.cover_xl);
+        if (image) {
+          result = { image, album: item.album.title.slice(0, 130) };
+          break;
+        }
+      }
+      if (trackCache.size >= 128) trackCache.delete(trackCache.keys().next().value);
+      trackCache.set(key, { value: result, at: now });
+      return result;
     },
   });
 }

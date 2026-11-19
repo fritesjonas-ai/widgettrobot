@@ -87,9 +87,12 @@ export function parseMessage(text) {
   const command=word.toLowerCase().split('@')[0];
   if(command==='/setuser') return {kind:'link',username:args.join(' ').trim()};
   if(command==='/buscar'||command==='/radiofm') {
-    const term=args.join(' ').trim();
-    return term && term.length<=90 ? {kind:'action',action:ACTION.SEARCH,term} :
-      {kind:'invalid',usage:'Use /buscar nome da música ou artista (até 90 caracteres).'};
+    const first=(args[0]||'').toLowerCase();
+    const mode=['artista','artistas','artist','artists'].includes(first)?'artists':
+      ['faixa','faixas','musica','música','track','tracks'].includes(first)?'tracks':'all';
+    const term=(mode==='all'?args:args.slice(1)).join(' ').trim();
+    return term.length<=90 ? {kind:'action',action:ACTION.SEARCH,mode,term} :
+      {kind:'invalid',usage:'Use /buscar [faixa|artista] termo (até 90 caracteres).'};
   }
   if(command==='/remover') return {kind:'unlink',confirmed:args.length===1 && args[0].toLowerCase()==='confirmar'};
   if(command==='/tops') return topOptions(args) || {
