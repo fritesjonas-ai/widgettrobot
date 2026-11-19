@@ -177,11 +177,19 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
         const current=recentTracks[0];
         if (!current) return send(chatId,views.error('Nenhuma reprodução','Não há música recente para consultar.'));
         if (action===ACTION.ALBUM) {
-          if (!current.album) return send(chatId,views.error('Álbum indisponível',
-            'O Last.fm não informou o álbum da última música.'));
-          const info=await lastfm.albumInfo(current.artist,current.album);
-          const cover=info?.image||await artworkFor(current);
-          return send(chatId,views.album(current,info,cover));
+          let albumTrack=current;
+          if (!albumTrack.album && typeof lastfm.trackDetails==='function') {
+            // Last.fm recent tracks can omit album even when track.getInfo knows it.
+            try {
+              const details=await lastfm.trackDetails(current);
+              albumTrack={...current,album:details.album||'',image:current.image||details.image||''};
+            } catch(error) { record(error,'album-track-metadata'); }
+          }
+          if (!albumTrack.album) return send(chatId,views.error('Álbum indisponível',
+            'Não foi possível identificar o álbum da última música no Last.fm.'));
+          const info=await lastfm.albumInfo(albumTrack.artist,albumTrack.album);
+          const cover=info?.image||await artworkFor(albumTrack);
+          return send(chatId,views.album(albumTrack,info,cover));
         }
         const preview=lyrics?.preview
           ? await lyrics.preview(current.artist,current.title)

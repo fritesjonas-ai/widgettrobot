@@ -1,6 +1,6 @@
 {
   "name": "widgettrobot",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "private": true,
   "type": "module",
   "description": "Card musical Last.fm via Telegram Rich Messages e GitHub Actions",

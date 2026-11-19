@@ -16,10 +16,29 @@ export default async function () {
   const details = await lastfm.trackDetails({ artist: 'Cher', title: 'Believe' });
   const deezer = createDeezerCoverClient({ request: fetch });
   const cover = await deezer.findTrack('Cher', 'Believe');
+  // A boolean in a diagnostic report isn't a pass unless the expected cover
+  // metadata really exists on the published runtime.
+  if (!details.album || !cover?.image || !cover?.album) {
+    throw new Error('Post-deploy album/cover lookup is not usable');
+  }
   const rich = richViews.searchResults('Cher', tracks, '', artists, 'all');
+  const albumMarkup=richViews.album(
+    {title:'Believe',artist:'Cher',album:details.album},
+    {title:details.album,artist:'Cher',tracks:[]},
+    cover.image,
+  );
+  const cardMarkup=richViews.musicCard({
+    user:'smokecheck',mode:'last',title:'Believe',artist:'Cher',
+    album:details.album,image:cover.image,
+  });
   const help = richViews.searchHelp();
   if (!rich.includes('<h3>Faixas</h3>') || !rich.includes('<h3>Artistas</h3>') ||
-      !rich.includes('<tg-button-row>') || !help.includes('/buscar artista')) {
+      !rich.includes('<tg-button-row>') || !help.includes('/buscar artista') ||
+      !albumMarkup.includes('<figure><img src=') ||
+      !albumMarkup.includes('<h2>') || !albumMarkup.includes('wt:widget') ||
+      !cardMarkup.includes('<h1><b>Believe</b></h1>') ||
+      !cardMarkup.includes('<h2><i>Cher</i></h2>') ||
+      !cardMarkup.includes('wt:album')) {
     throw new Error('New Rich search output is inconsistent with public results');
   }
   return {
@@ -27,5 +46,6 @@ export default async function () {
     metadata: { albumFound: Boolean(details.album), imageFound: Boolean(details.image) },
     deezerTrackCover: { found: Boolean(cover?.image), albumFound: Boolean(cover?.album) },
     richSearch: { validated: true },
+    richAlbumAndCard: { validated: true },
   };
 }

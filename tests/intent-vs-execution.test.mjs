@@ -190,3 +190,49 @@ test('capa de Deezer por faixa usa cache e respeita edição informada',async()=
   assert.deepEqual(await client.findTrack('Cher','Believe','Believe'),result);
   assert.equal(calls.length,1);
 });
+
+test('/album recupera álbum ausente no scrobble antes de abrir a Rich Message',async()=>{
+ const requests=[],sent=[];
+ const bot=createBotService({
+   profiles:{async get(){return 'rj'}},
+   lastfm:{
+     async recent(){requests.push('recent');return [{artist:'Cher',title:'Believe',album:'',image:''}]},
+     async trackDetails(track){
+       requests.push('trackDetails:'+track.artist+':'+track.title);
+       return {album:'Believe',image:COVER_LASTFM};
+     },
+     async albumInfo(artist,album){
+       requests.push('albumInfo:'+artist+':'+album);
+       return {title:'Believe',artist:'Cher',tracks:['Believe'],image:''};
+     },
+   },
+   views:richViews,
+   messenger:{async rich(_,html){sent.push(html)}},
+   logger:{error(){}},
+ });
+ await bot.onMessage({text:'/album',chat:{id:101,type:'private'},from:{id:101}});
+ assert.deepEqual(requests,['recent','trackDetails:Cher:Believe','albumInfo:Cher:Believe']);
+ assert.ok(sent[0].includes(COVER_LASTFM));
+ assert.match(sent[0],/<h2>Believe<\/h2>/);
+ assert.match(sent[0],/<li>Believe<\/li>/);
+ assert.match(sent[0],/data="wt:album"/);
+});
+
+test('/album não inventa álbum nem chama catálogo quando faixa não tem metadados',async()=>{
+ const requests=[],sent=[];
+ const bot=createBotService({
+   profiles:{async get(){return 'rj'}},
+   lastfm:{
+     async recent(){requests.push('recent');return [{artist:'Cher',title:'Unknown',album:'',image:''}]},
+     async trackDetails(){requests.push('trackDetails');return {album:'',image:''}},
+     async albumInfo(){throw Error('Não deveria solicitar álbum não identificado')},
+   },
+   views:richViews,
+   messenger:{async rich(_,html){sent.push(html)}},
+   logger:{error(){}},
+ });
+ await bot.onMessage({text:'/album',chat:{id:101,type:'private'},from:{id:101}});
+ assert.deepEqual(requests,['recent','trackDetails']);
+ assert.match(sent[0],/Álbum indisponível/);
+ assert.doesNotMatch(sent[0],/<figure><img/);
+});

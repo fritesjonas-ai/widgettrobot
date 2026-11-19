@@ -70,3 +70,5 @@ Quando um ranking, uma música amada ou uma recomendação não fornece o álbum
 `/buscar` sem argumentos abre ajuda (inclusive pelo botão Rich Buscar). `/buscar termo` pesquisa **faixas e artistas**; `/buscar faixa termo` pesquisa apenas faixas; `/buscar artista termo` pesquisa apenas artistas. Usa `track.search` e `artist.search` oficialmente documentados. Continua sem teclado inline.
 
 No CI, os testes simulados rodam antes do deploy; **os diagnósticos reais agora rodam depois de `tgcloud push` e `tgcloud migrate`**, verificando Last.fm, Deezer, armazenamento e saída Rich. Isso verifica a revisão publicada sem enviar mensagens a usuários. A aparência final no cliente Telegram ainda exige teste no aplicativo.
+
+A consulta `/album` também recupera o álbum pelo `track.getInfo` quando a última reprodução não inclui esse campo, antes de considerar o álbum indisponível. A validação pós-deploy confirma agora que o álbum e a capa de um exemplo público são utilizáveis e que os templates Rich do card e álbum renderizam a estrutura esperada.
