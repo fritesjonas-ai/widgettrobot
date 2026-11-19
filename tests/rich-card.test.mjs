@@ -92,7 +92,7 @@ test('card musical usa apenas capa, título H1 bold, música — álbum e artist
   for (const action of ['tops', 'stats', 'loved', 'weekly', 'discover']) {
     assert.match(rich, new RegExp('data="wt:' + action + '"'));
   }
-  assert.equal((rich.match(/<tg-button /g) || []).length, 8);
+  assert.equal((rich.match(/<tg-button /g) || []).length, 12);
 });
 
 test('card sem álbum omite a linha música — álbum; estados vazios e de erro continuam legíveis', () => {
@@ -131,7 +131,7 @@ test('/setuser grava perfil e envia card Rich contendo música e ações', async
   assert.match(card, /<tg-button type="callback_data" data="wt:widget" style="primary">Atualizar<\/tg-button>/);
   assert.match(card, /<tg-button type="url" url="https:\/\/www\.last\.fm\/user\/pessoa123">Perfil Last.fm<\/tg-button>/);
   assert.doesNotMatch(card, /Card musical|Capa do álbum|Outras reproduções recentes|figcaption|<footer>|@pessoa123/);
-  assert.equal((card.match(/<tg-button /g) || []).length, 8);
+  assert.equal((card.match(/<tg-button /g) || []).length, 12);
   for (const action of ['tops','stats','loved','weekly','discover']) {
     assert.match(card, new RegExp('data="wt:' + action + '"'));
   }

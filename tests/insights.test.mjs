@@ -164,8 +164,10 @@ test('/tops exibe ranking, capa, tags Rich e navegação de períodos',async()=>
 test('/tops artistas nunca inventa a capa de uma música alheia',async()=>{
  const h=setup();
  await h.bot.onMessage(h.message('/tops artistas'));
- assert.equal(h.requests.length,1);
- assert.equal(h.requests[0].method,'user.getTopArtists');
+ assert.equal(h.requests.length,2);
+ assert.deepEqual(h.requests.map(x=>x.method),['user.getTopArtists','user.getTopTracks']);
+ assert.equal(h.requests[1].params.get('period'),'7day');
+ assert.equal(h.requests[1].params.get('limit'),'50');
  assert.match(h.markup(),/Top artistas/);
  assert.match(h.markup(),/Artist One/);
  assert.doesNotMatch(h.markup(),/<img/);
@@ -237,7 +239,7 @@ test('/descobrir usa artistas similares se não houver músicas semelhantes',asy
   'user.getRecentTracks','track.getSimilar','artist.getSimilar']);
  assert.match(h.markup(),/Descobrir artistas/);
  assert.match(h.markup(),/Another Band/);
- assert.doesNotMatch(h.markup(),/<img/);
+ assert.match(h.markup(),/<img src="/);
 });
 test('callbacks Rich refinam /tops somente no chat privado autorizado e com ACK prévio',async()=>{
  const h=setup();
