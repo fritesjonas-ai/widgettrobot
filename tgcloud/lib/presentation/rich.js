@@ -31,7 +31,8 @@ function musicCard(state) {
   const actions = row(
     button('Atualizar', ACTION.WIDGET, 'primary'),
     button('Recentes', ACTION.RECENT),
-  ) + row('<tg-button type="url" url="' + profileUrl(user) + '">Perfil Last.fm</tg-button>');
+  ) + INSIGHT_NAV +
+    row('<tg-button type="url" url="' + profileUrl(user) + '">Perfil Last.fm</tg-button>');
 
   return '<p><b>' + label + '</b></p>' + cover + details + actions;
 }
@@ -59,7 +60,8 @@ function topsView({kind,period,items,cover}) {
     ranked(items,kind) +
     row(periodButton('Músicas','tracks',period),periodButton('Álbuns','albums',period),periodButton('Artistas','artists',period)) +
     row(periodButton('7d',kind,'7day'),periodButton('1m',kind,'1month'),periodButton('3m',kind,'3month')) +
-    row(periodButton('6m',kind,'6month'),periodButton('12m',kind,'12month'),periodButton('Geral',kind,'overall'));
+    row(periodButton('6m',kind,'6month'),periodButton('12m',kind,'12month'),periodButton('Geral',kind,'overall')) +
+    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function statsView(user,stats,cover='') {
   const year=stats.registered ? new Date(stats.registered*1000).getUTCFullYear() : 0;
@@ -71,21 +73,21 @@ function statsView(user,stats,cover='') {
     ...(year>=2002 && year<=2100?['<p>Desde '+year+'</p>']:[]),
   ];
   return '<h3>Estatísticas · @'+escapeHtml(user)+'</h3>'+figure(cover)+fields.join('')+
-    row(button('Atualizar',ACTION.STATS,'primary'),button('Tops',ACTION.TOPS));
+    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function lovedView(user,tracks,cover='') {
   const list=tracks.length?'<ol>'+tracks.slice(0,5).map(t =>
     '<li>'+escapeHtml(t.artist)+' — <b>'+escapeHtml(t.title)+'</b></li>').join('')+'</ol>'
     :'<p>Nenhuma música amada encontrada.</p>';
   return '<h3>Músicas amadas</h3>'+figure(cover)+list+
-    row(button('Atualizar',ACTION.LOVED,'primary'),button('Descobrir',ACTION.DISCOVER));
+    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function weeklyView({tracks,artists,albums,cover}) {
   return '<h3>Seus últimos 7 dias</h3>'+figure(cover)+
     '<h4>Músicas</h4>'+ranked(tracks,'tracks',3)+
     '<h4>Artistas</h4>'+ranked(artists,'artists',3)+
     '<h4>Álbuns</h4>'+ranked(albums,'albums',3)+
-    row(button('Atualizar',ACTION.WEEKLY,'primary'),button('Tops',ACTION.TOPS));
+    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 function discoverView({seed,result,cover}) {
   const items=result.items||[];
@@ -95,7 +97,7 @@ function discoverView({seed,result,cover}) {
   return '<h3>Descobrir '+(result.kind==='artists'?'artistas':'músicas')+'</h3>'+
     '<p>Com base em '+escapeHtml(seed.artist)+' — '+escapeHtml(seed.title)+'</p>'+
     figure(cover)+list+
-    row(button('Atualizar',ACTION.DISCOVER,'primary'),button('Card',ACTION.WIDGET));
+    INSIGHT_NAV + row(button('Card musical',ACTION.WIDGET));
 }
 
 export const richViews = Object.freeze({
@@ -112,7 +114,7 @@ export const richViews = Object.freeze({
       (user ? `<p>Conectado: <a href="${profileUrl(user)}"><b>@${escapeHtml(user)}</b></a>.</p>` :
         `<p>Nenhum usuário Last.fm vinculado.</p>`) +
       `<p>Para alterar, envie <code>/setuser usuario</code>. Para desvincular, envie <code>/remover confirmar</code>.</p>` +
-      row(button('Card musical', ACTION.WIDGET, 'primary'), button('Ajuda', ACTION.HELP));
+      INSIGHT_NAV + row(button('Card musical', ACTION.WIDGET, 'primary'), button('Ajuda', ACTION.HELP));
   },
   musicCard,
   current: musicCard,
@@ -124,7 +126,7 @@ export const richViews = Object.freeze({
   recent(user, tracks) {
     const list = tracks.slice(0, 5).map(t => `<li>${escapeHtml(t.artist)} — <b>${escapeHtml(t.title)}</b>${t.nowplaying ? ' (tocando agora)' : ''}</li>`).join('');
     return `<h3>Últimas músicas</h3><p>Perfil <a href="${profileUrl(user)}">@${escapeHtml(user)}</a></p>` +
-      (list ? `<ol>${list}</ol>` : '<p>Nenhuma reprodução recente encontrada.</p>') + MENU;
+      (list ? `<ol>${list}</ol>` : '<p>Nenhuma reprodução recente encontrada.</p>') + INSIGHT_NAV + MENU;
   },
   error(title, detail) {
     return `<h3>${escapeHtml(title)}</h3><p>${escapeHtml(detail)}</p>` + MENU;

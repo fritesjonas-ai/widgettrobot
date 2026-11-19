@@ -70,6 +70,55 @@ function setup(overrides={}) {
   markup(){return calls.findLast(call=>call.method==='sendRichMessage')?.data.rich_message.html||''},
   reset(){calls.length=0;requests.length=0;activity.length=0;logs.length=0;}};
 }
+test('card, relatórios, recentes e perfil mostram as cinco funções como botões Rich',async()=>{
+ const h=setup();
+ const routes=[
+  {command:'/widget', method:'user.getRecentTracks'},
+  {command:'/tops', method:'user.getTopTracks'},
+  {command:'/stats', method:'user.getInfo'},
+  {command:'/amadas', method:'user.getLovedTracks'},
+  {command:'/semana', method:'user.getTopTracks'},
+  {command:'/descobrir', method:'track.getSimilar'},
+  {command:'/recentes', method:'user.getRecentTracks'},
+  {command:'/perfil', method:null},
+ ];
+ for(const {command,method} of routes) {
+  h.reset();
+  await h.bot.onMessage(h.message(command));
+  const markup=h.markup();
+  assert.ok(markup.includes('<tg-button-row>'),command);
+  for(const action of ['tops','stats','loved','weekly','discover']) {
+   assert.match(markup,new RegExp('data="wt:'+action+'"'),command+' '+action);
+  }
+  assert.doesNotMatch(markup,/inline_keyboard|reply_markup|<script/i);
+  assert.equal(h.calls.filter(x=>x.method==='sendRichMessage').length,1);
+  if(method) assert.ok(h.requests.some(x=>x.method===method),command);
+ }
+});
+
+test('botões das cinco funções executam callback com ACK antes da consulta, sem teclados inline',async()=>{
+ const actions=[
+  ['wt:tops','user.getTopTracks'],
+  ['wt:stats','user.getInfo'],
+  ['wt:loved','user.getLovedTracks'],
+  ['wt:weekly','user.getTopTracks'],
+  ['wt:discover','user.getRecentTracks'],
+ ];
+ const h=setup();
+ for(const [data,method] of actions) {
+  h.reset();
+  await h.bot.onCallback({
+   id:'cb-'+data, data,
+   message:{chat:{id:123,type:'private'}},
+   from:{id:123},
+  });
+  assert.equal(h.calls[0]?.method,'answerCallbackQuery',data);
+  assert.equal(h.requests[0]?.method,method,data);
+  assert.equal(h.calls.at(-1)?.method,'sendRichMessage',data);
+  assert.doesNotMatch(h.markup(),/inline_keyboard|reply_markup/);
+ }
+});
+
 test('parser de /tops aceita categoria/período e rejeita filtros desconhecidos',()=>{
  assert.deepEqual(parseMessage('/tops'),{kind:'action',action:'tops',category:'tracks',period:'7day'});
  assert.deepEqual(parseMessage('/tops artistas 1m'),{kind:'action',action:'tops',category:'artists',period:'1month'});
