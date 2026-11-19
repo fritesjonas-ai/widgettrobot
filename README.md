@@ -15,6 +15,12 @@ O card mostra apenas status, capa (quando disponível), título, artista, álbum
 
 A API documenta `sendRichMessage` e o Rich HTML em https://core.telegram.org/bots/api.
 
+## Menu de comandos no chat privado
+
+O Telegram mostra os comandos disponíveis quando o usuário digita `/` na conversa privada. Após cada deploy, `tgcloud run endpoints/configureCommands` registra com `api.setMyCommands` os oito comandos canônicos no escopo `all_private_chats`, para idioma geral e português (`pt`), e verifica o resultado com `api.getMyCommands`.
+
+Comandos listados: `/start`, `/setuser`, `/widget`, `/now`, `/recentes`, `/perfil`, `/remover` e `/ajuda`. Para `/setuser`, informe o usuário Last.fm depois do comando; para desvincular, use `/remover confirmar`. Aliases continuam disponíveis mas não duplicam o menu. Nenhum teclado inline é criado e os comandos não são anunciados para grupos. Referência: https://core.telegram.org/bots/api#setmycommands.
+
 ## Compatibilidade
 
 Bots comuns podem receber `INPUT_MEDIA_WIDGET_NOT_ALLOWED` ao tentar enviar HTML Widgets. O bot não envia Widgets novos. O handler `widget_query` permanece apenas para atender mensagens legadas eventualmente existentes.

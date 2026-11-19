@@ -56,6 +56,10 @@ jobs:
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
         run: npx tgcloud migrate --safe
+      - name: Publicar comandos no menu privado do Telegram
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: npx tgcloud run endpoints/configureCommands '{}'
       - name: Habilitar callbacks Rich e eventos legados
         env:
           TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
