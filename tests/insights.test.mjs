@@ -85,6 +85,17 @@ test('parser de /tops aceita categoria/período e rejeita filtros desconhecidos'
  assert.equal(fromCallback('wt:tops:tracks:7day:extra'),null);
  assert.equal(Object.keys(TOP_PERIODS).length,6);
 });
+test('/ajuda inclui navegação Rich para as cinco funções sem alterar o card musical',async()=>{
+ const h=setup();
+ await h.bot.onMessage(h.message('/ajuda'));
+ assert.equal(h.calls.length,1);
+ for(const action of ['tops','stats','loved','weekly','discover']) {
+  assert.match(h.markup(),new RegExp('data="wt:'+action+'"'));
+ }
+ assert.match(h.markup(),/\/tops faixas 7d/);
+ assert.doesNotMatch(h.markup(),/inline_keyboard|reply_markup/);
+});
+
 test('/tops exibe ranking, capa, tags Rich e navegação de períodos',async()=>{
  const h=setup();
  await h.bot.onMessage(h.message('/tops faixas 1m'));

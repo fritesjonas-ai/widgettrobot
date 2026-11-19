@@ -29,7 +29,7 @@ Comandos listados: `/start`, `/setuser`, `/widget`, `/now`, `/recentes`, `/perfi
 - `/semana` — top 3 músicas, artistas e álbuns **dos últimos 7 dias corridos**, não da semana de calendário.
 - `/descobrir` — sugestões com `track.getSimilar`; caso não existam, usa `artist.getSimilar`.
 
-Os resultados são Rich Messages com tags `<tg-button>`, listas e capa da primeira faixa ou álbum quando disponível. A busca de capas reutiliza Last.fm, Deezer e Cover Art Archive. Rankings de artistas não apresentam uma capa arbitrária. Não há `inline_keyboard`, autenticação adicional da conta ou mudanças na estrutura de perfis SQLite. O menu privado `/` passa a ter 13 comandos. Fontes: https://www.last.fm/api/ e https://core.telegram.org/bots/api.
+Os resultados são Rich Messages com tags `<tg-button>`, listas e capa da primeira faixa ou álbum quando disponível. A busca de capas reutiliza Last.fm, Deezer e Cover Art Archive. Rankings de artistas não apresentam uma capa arbitrária. Não há `inline_keyboard`, autenticação adicional da conta ou mudanças na estrutura de perfis SQLite. O menu privado `/` passa a ter 13 comandos. A mensagem `/ajuda` também oferece botões `tg-button` para abrir os cinco novos recursos. O diagnóstico real confirmou dados para todos os novos métodos Last.fm; a validação é executada nos testes automatizados, sem consultas adicionais à API em cada futuro deploy. Fontes: https://www.last.fm/api/ e https://core.telegram.org/bots/api.
 
 ## Compatibilidade
 

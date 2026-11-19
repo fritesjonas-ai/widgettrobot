@@ -103,7 +103,9 @@ export const richViews = Object.freeze({
     return `<h2>widgettrobot</h2><p>Seu Last.fm em Rich Messages no Telegram.</p>` +
       (user ? `<p>Perfil atual: <a href="${profileUrl(user)}">@${escapeHtml(user)}</a>.</p>` :
         `<blockquote>Para começar, envie <code>/setuser seu_usuario_lastfm</code>.</blockquote>`) +
-      MENU + `<footer>O card mostra a última informação disponível no Last.fm.</footer>`;
+      '<p>Explore: <code>/tops faixas 7d</code>, <code>/stats</code>, <code>/amadas</code>, ' +
+      '<code>/semana</code> e <code>/descobrir</code>.</p>' +
+      INSIGHT_NAV + MENU;
   },
   profile(user = '') {
     return `<h3>Meu perfil Last.fm</h3>` +
