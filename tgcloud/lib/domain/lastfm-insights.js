@@ -25,7 +25,7 @@ function count(raw) {
   return Number.isSafeInteger(n) && n >= 0 ? n : 0;
 }
 export function parseRanking(payload, root, key, kind) {
-  const list = entries(container(payload, root), key).slice(0, 10);
+  const list = entries(container(payload, root), key).slice(0, 50);
   return list.map(item => {
     const name = value(item?.name, 115);
     const artist = kind === 'artists' ? name : artistName(item?.artist);

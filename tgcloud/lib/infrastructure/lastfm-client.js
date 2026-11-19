@@ -98,7 +98,7 @@ export function createLastfmClient({ request, apiKey }) {
         throw new TypeError('Ranking: filtro inválido');
       }
       const [method, root, item] = methods[kind];
-      const { payload } = await query(method, { user:username, period, limit:Math.max(1,Math.min(10,Number(limit)||5)) });
+      const { payload } = await query(method, { user:username, period, limit:Math.max(1,Math.min(50,Number(limit)||5)) });
       return parseRanking(payload,root,item,kind);
     },
     async info(username) {
@@ -127,6 +127,37 @@ export function createLastfmClient({ request, apiKey }) {
         if (error instanceof ExternalServiceError && [6,7].includes(error.apiCode)) return {kind:'artists',items:[]};
         throw error;
       }
+    },
+    async albumInfo(artist, album) {
+      if (!artist || !album) return null;
+      try {
+        const { payload } = await query('album.getInfo', { artist, album, autocorrect:1 });
+        const data = payload?.album;
+        if (!data || typeof data !== 'object') return null;
+        const tracks = data?.tracks?.track;
+        const list = Array.isArray(tracks) ? tracks : tracks && typeof tracks === 'object' ? [tracks] : [];
+        return {
+          title: String(data.name || album).slice(0,130),
+          artist: String(typeof data.artist === 'string' ? data.artist : data.artist?.name || artist).slice(0,100),
+          image: coverFromImages(data.image),
+          tracks: list.slice(0,5).map(x=>String(x?.name||'').slice(0,120)).filter(Boolean),
+          listeners: Number(data.listeners)||0,
+        };
+      } catch(error) {
+        if (error instanceof ExternalServiceError && error.apiCode===6) return null;
+        throw error;
+      }
+    },
+    async search(term, limit=5) {
+      if(typeof term!=='string' || !term.trim() || term.length>90) throw new TypeError('Busca inválida');
+      const { payload } = await query('track.search', { track:term.trim(),limit:Math.max(1,Math.min(10,Number(limit)||5)) });
+      const raw=payload?.results?.trackmatches?.track;
+      const list=Array.isArray(raw)?raw:raw&&typeof raw==='object'?[raw]:[];
+      return list.slice(0,5).map(x=>({
+        title:String(x?.name||'').slice(0,115),
+        artist:String(typeof x?.artist==='string'?x.artist:x?.artist?.name||'').slice(0,100),
+        album:'', image:coverFromImages(x?.image),
+      })).filter(x=>x.title&&x.artist);
     },
     coverFor,
   });

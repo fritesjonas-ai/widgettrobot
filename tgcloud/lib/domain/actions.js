@@ -3,6 +3,7 @@ export const ACTION = Object.freeze({
   START:'start',HELP:'help',PROFILE:'profile',NOW:'now',
   RECENT:'recent',WIDGET:'widget',TOPS:'tops',STATS:'stats',
   LOVED:'loved',WEEKLY:'weekly',DISCOVER:'discover',
+  ALBUM:'album',LYRICS:'lyrics',SEARCH:'search',SUMMARY:'summary',
 });
 export const TOP_KINDS = Object.freeze({
   tracks:'músicas',albums:'álbuns',artists:'artistas',
@@ -22,6 +23,10 @@ const COMMANDS = Object.freeze({
   '/recentes':ACTION.RECENT,'/perfil':ACTION.PROFILE,
   '/tops':ACTION.TOPS,'/stats':ACTION.STATS,'/amadas':ACTION.LOVED,
   '/semana':ACTION.WEEKLY,'/descobrir':ACTION.DISCOVER,
+  '/album':ACTION.ALBUM,'/albnow':ACTION.ALBUM,
+  '/letra':ACTION.LYRICS,'/tly':ACTION.LYRICS,
+  '/buscar':ACTION.SEARCH,'/radiofm':ACTION.SEARCH,
+  '/resumo':ACTION.SUMMARY,'/myself':ACTION.SUMMARY,
 });
 const CALLBACKS = Object.freeze({
   'wt:widget':ACTION.WIDGET,'wt:now':ACTION.NOW,
@@ -29,6 +34,8 @@ const CALLBACKS = Object.freeze({
   'wt:help':ACTION.HELP,'wt:tops':ACTION.TOPS,
   'wt:stats':ACTION.STATS,'wt:loved':ACTION.LOVED,
   'wt:weekly':ACTION.WEEKLY,'wt:discover':ACTION.DISCOVER,
+  'wt:album':ACTION.ALBUM,'wt:lyrics':ACTION.LYRICS,
+  'wt:search':ACTION.SEARCH,'wt:summary':ACTION.SUMMARY,
 });
 const WIDGETS = Object.freeze({
   [WIDGET_ACTION.REFRESH]:'refresh',
@@ -79,6 +86,11 @@ export function parseMessage(text) {
   const [word='',...args]=String(text??'').trim().split(/\s+/);
   const command=word.toLowerCase().split('@')[0];
   if(command==='/setuser') return {kind:'link',username:args.join(' ').trim()};
+  if(command==='/buscar'||command==='/radiofm') {
+    const term=args.join(' ').trim();
+    return term && term.length<=90 ? {kind:'action',action:ACTION.SEARCH,term} :
+      {kind:'invalid',usage:'Use /buscar nome da música ou artista (até 90 caracteres).'};
+  }
   if(command==='/remover') return {kind:'unlink',confirmed:args.length===1 && args[0].toLowerCase()==='confirmar'};
   if(command==='/tops') return topOptions(args) || {
     kind:'invalid',usage:'Use /tops [faixas|albuns|artistas] [7d|1m|3m|6m|12m|geral].',
