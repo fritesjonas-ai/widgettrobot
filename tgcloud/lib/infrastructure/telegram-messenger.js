@@ -31,7 +31,7 @@ export function createTelegramMessenger({ api, logger = console }) {
     },
     async widget(chatId, { html, caption, data }) {
       const message = await call('sendWidget', { chat_id: chatId, html, width: 330, height: 390,
-        caption, allow_queries: true, chat_data: data });
+        caption, allow_queries: true, chat_data: data, reply_markup: nativeKeyboard });
       // The official API returns a Message whose widget field proves widget creation.
       // The Telegram client may still display its caption instead of rendering the widget.
       if (!message || !Number.isSafeInteger(message.message_id) || !message.widget) {

@@ -521,8 +521,9 @@ test('payloads reais Telegram seguem campos e tipos documentados para Rich, Widg
   const send = h.calls[0];
   assert.equal(send.method, 'sendWidget');
   assert.deepEqual(Object.keys(send.data).sort(),
-    ['allow_queries', 'caption', 'chat_data', 'chat_id', 'height', 'html', 'width']);
+    ['allow_queries', 'caption', 'chat_data', 'chat_id', 'height', 'html', 'reply_markup', 'width']);
   assert.equal(send.data.allow_queries, true);
+  assert.equal(send.data.reply_markup.inline_keyboard[0][0].callback_data, 'wt:widget');
   assert.ok(send.data.width >= 200 && send.data.height >= 50 && send.data.height <= 600);
   assert.equal(JSON.parse(send.data.chat_data).v, 1);
   assert.ok(Buffer.byteLength(send.data.chat_data, 'utf8') <= 1024);
