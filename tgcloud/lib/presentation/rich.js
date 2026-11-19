@@ -8,7 +8,7 @@ const row = (...buttons) => `<tg-button-row>${buttons.join('')}</tg-button-row>`
 const MENU = row(button('Atualizar card', ACTION.WIDGET, 'primary'), button('Últimas músicas', ACTION.RECENT)) +
   row(button('Meu perfil', ACTION.PROFILE), button('Ajuda', ACTION.HELP));
 
-function musicCard(state) {
+function musicCard(state, { showActions = true } = {}) {
   const user = state.user || '';
   if (!user) return '<h3>Last.fm não configurado</h3>' +
     '<p>Envie <code>/setuser usuario</code> para criar seu card musical.</p>';
@@ -36,7 +36,7 @@ function musicCard(state) {
   ) + INSIGHT_NAV + FORK_NAV +
     row('<tg-button type="url" url="' + profileUrl(user) + '">Perfil Last.fm</tg-button>');
 
-  return cover + details + actions;
+  return cover + details + (showActions ? actions : '');
 }
 
 const periodButton = (title,category,period) =>
@@ -167,7 +167,8 @@ export const richViews = Object.freeze({
       INSIGHT_NAV + FORK_NAV + row(button('Card musical', ACTION.WIDGET, 'primary'), button('Ajuda', ACTION.HELP));
   },
   musicCard,
-  current: musicCard,
+  // /now and /tocando are intentionally presentation-only: no action rows.
+  current: state => musicCard(state, { showActions: false }),
   tops: topsView,
   stats: statsView,
   loved: lovedView,

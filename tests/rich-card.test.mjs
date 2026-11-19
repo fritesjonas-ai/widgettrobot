@@ -254,6 +254,55 @@ test('capa externa não aprovada e metadados hostis não entram como HTML execut
   assert.doesNotMatch(card, /<script>|<img/);
 });
 
+test('/now mostra somente capa e dados da música, mas /widget mantém a navegação', async () => {
+  const h = setup(); await link(h); h.clear();
+  await h.bot.onMessage(message('/now'));
+  assert.deepEqual(h.calls.map(x => x.method), ['sendRichMessage']);
+  const now = html(h.calls[0]);
+  assert.match(now, /^<figure><img src="https:\/\/lastfm\.freetls\.fastly\.net\/i\/u\/300x300\/test-art\.jpg"\/><\/figure><h1><b>Starlight<\/b><\/h1>/);
+  assert.match(now, /<p>Starlight — Black Holes<\/p><h2><i>Muse<\/i><\/h2>$/);
+  assert.doesNotMatch(now, /<tg-button|<tg-button-row|inline_keyboard|reply_markup/);
+
+  h.clear();
+  await h.bot.onMessage(message('/widget'));
+  const widget = html(h.calls[0]);
+  assert.match(widget, /data="wt:widget"/);
+  assert.match(widget, /data="wt:tops"/);
+  assert.match(widget, /data="wt:album"/);
+  assert.match(widget, /<tg-button-row>/);
+});
+
+test('/tocando e botão Rich Now também produzem card sem botões', async () => {
+  const h = setup(); await link(h); h.clear();
+  await h.bot.onMessage(message('/tocando'));
+  assert.match(html(h.calls[0]), /<h1><b>Starlight<\/b><\/h1>/);
+  assert.doesNotMatch(html(h.calls[0]), /<tg-button/);
+
+  h.clear();
+  await h.bot.onCallback(callback('wt:now'));
+  assert.deepEqual(h.calls.map(x => x.method), ['answerCallbackQuery', 'sendRichMessage']);
+  assert.match(html(h.calls[1]), /<h2><i>Muse<\/i><\/h2>/);
+  assert.doesNotMatch(html(h.calls[1]), /<tg-button/);
+});
+
+test('/now vazio, sem perfil e com falha Last.fm não acrescenta botões', async () => {
+  const noProfile=setup();
+  await noProfile.bot.onMessage(message('/now'));
+  assert.match(html(noProfile.calls[0]), /Last.fm não configurado/);
+  assert.doesNotMatch(html(noProfile.calls[0]), /<tg-button/);
+
+  const empty=setup(payload()); await link(empty); empty.clear();
+  await empty.bot.onMessage(message('/now'));
+  assert.match(html(empty.calls[0]), /Nenhuma reprodução recente encontrada/);
+  assert.doesNotMatch(html(empty.calls[0]), /<tg-button|<img/);
+
+  const failed=setup(); await link(failed); failed.clear();
+  failed.setPayload({error:29,message:'Rate limit exceeded'});
+  await failed.bot.onMessage(message('/now'));
+  assert.match(html(failed.calls[0]), /Last.fm limitou as consultas/);
+  assert.doesNotMatch(html(failed.calls[0]), /<tg-button|<h1>|<img/);
+});
+
 test('/now distingue a última reprodução, sem afirmar que está tocando', async () => {
   const h = setup(payload(song('Yesterday', 'Muse', false))); await link(h); h.clear();
   await h.bot.onMessage(message('/now'));

@@ -31,6 +31,10 @@ export default async function () {
     user:'smokecheck',mode:'last',title:'Believe',artist:'Cher',
     album:details.album,image:cover.image,
   });
+  const nowMarkup=richViews.current({
+    user:'smokecheck',mode:'playing',title:'Believe',artist:'Cher',
+    album:details.album,image:cover.image,
+  });
   const help = richViews.searchHelp();
   if (!rich.includes('<h3>Faixas</h3>') || !rich.includes('<h3>Artistas</h3>') ||
       !rich.includes('<tg-button-row>') || !help.includes('/buscar artista') ||
@@ -38,7 +42,10 @@ export default async function () {
       !albumMarkup.includes('<h2>') || !albumMarkup.includes('wt:widget') ||
       !cardMarkup.includes('<h1><b>Believe</b></h1>') ||
       !cardMarkup.includes('<h2><i>Cher</i></h2>') ||
-      !cardMarkup.includes('wt:album')) {
+      !cardMarkup.includes('wt:album') ||
+      !nowMarkup.includes('<h1><b>Believe</b></h1>') ||
+      !nowMarkup.includes('<figure><img src=') ||
+      nowMarkup.includes('<tg-button')) {
     throw new Error('New Rich search output is inconsistent with public results');
   }
   return {
@@ -47,5 +54,6 @@ export default async function () {
     deezerTrackCover: { found: Boolean(cover?.image), albumFound: Boolean(cover?.album) },
     richSearch: { validated: true },
     richAlbumAndCard: { validated: true },
+    nowCardClean: { validated: true },
   };
 }

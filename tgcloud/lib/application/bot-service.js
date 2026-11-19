@@ -109,6 +109,7 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
     if (action === ACTION.WIDGET) return sendCard(chatId, user);
     if (action === ACTION.PROFILE) return send(chatId, views.profile(user || ''));
     if (action === ACTION.SEARCH && !term) return send(chatId, views.searchHelp());
+    if (action === ACTION.NOW && !user) return send(chatId, views.current({ user: '', mode: 'empty' }));
     if (!user && action !== ACTION.SEARCH) return send(chatId, views.profile(''));
 
     if (action === ACTION.SUMMARY) return send(chatId, views.summary(user));
@@ -207,7 +208,9 @@ export function createBotService({ profiles, lastfm, lyrics = null, coverArt = n
       catch (error) {
         if (!(error instanceof ExternalServiceError)) throw error;
         record(error, 'lastfm-now');
-        return send(chatId, failureView(error, 'Não foi possível consultar o Last.fm'));
+        return send(chatId, views.current({
+          user, mode: 'error', error: lastfmErrorDetail(error),
+        }));
       }
     }
     if (action === ACTION.RECENT) {
